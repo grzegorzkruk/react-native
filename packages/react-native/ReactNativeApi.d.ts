@@ -311,6 +311,8 @@ declare const parallelImpl: (
 declare const PermissionsAndroid: typeof PermissionsAndroidInstance_default
 declare const PermissionsAndroidInstance_default: PermissionsAndroidImpl
 declare const Platform: PlatformType
+declare const PredictiveBackAnimatedView: typeof PredictiveBackAnimatedView_default
+declare const PredictiveBackAnimatedView_default: React.ComponentType<PredictiveBackAnimatedViewProps>
 declare const Presets: {
   easeInEaseOut: LayoutAnimationConfig
   linear: LayoutAnimationConfig
@@ -3576,8 +3578,19 @@ declare type PointValue = {
   x: number
   y: number
 }
+declare type PredictiveBackAnimatedView = typeof PredictiveBackAnimatedView
+declare type PredictiveBackAnimatedViewProps = ViewProps & {
+  onProgress?: (event: { nativeEvent: PredictiveBackNativeEvent }) => unknown
+}
 declare type PredictiveBackEvent = {
   phase: PredictiveBackPhase
+  progress: number
+  swipeEdge: number
+  touchX: number
+  touchY: number
+}
+declare type PredictiveBackNativeEvent = {
+  phase: number
   progress: number
   swipeEdge: number
   touchX: number
@@ -5446,6 +5459,10 @@ declare function useAnimatedValueXY(
   config?: Animated.AnimatedConfig | null | undefined,
 ): Animated.ValueXY
 declare function useColorScheme(): ColorSchemeName | null
+declare function usePredictiveBackAnimatedValue(): {
+  onProgress: any
+  progress: Animated.Value
+}
 declare function usePressability(
   config: null | PressabilityConfig | undefined,
 ): null | PressabilityEventHandlers
@@ -5940,7 +5957,10 @@ export {
   PlatformSelectSpec, // 09ed7758
   PointValue, // 69db075f
   PointerEvent, // a506d9d7
+  PredictiveBackAnimatedView, // b7897c30
+  PredictiveBackAnimatedViewProps, // 9d8f7fe6
   PredictiveBackEvent, // e2919d69
+  PredictiveBackNativeEvent, // a7e9dafb
   PredictiveBackPhase, // dcc1122c
   PressabilityConfig, // 0fd655fe
   PressabilityEventHandlers, // be359ba3
@@ -6081,6 +6101,7 @@ export {
   useAnimatedValue, // dc9d6f5c
   useAnimatedValueXY, // dc9057ea
   useColorScheme, // d585efdb
+  usePredictiveBackAnimatedValue, // 99a81437
   usePressability, // af291ad3
   useWindowDimensions, // bb4b683f
 }
