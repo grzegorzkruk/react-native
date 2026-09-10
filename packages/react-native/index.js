@@ -382,10 +382,6 @@ module.exports = {
   get useAnimatedValue() {
     return require('./Libraries/Animated/useAnimatedValue').default;
   },
-  get usePredictiveBackAnimatedValue() {
-    return require('./Libraries/Components/PredictiveBack/PredictiveBackAnimatedView')
-      .usePredictiveBackAnimatedValue;
-  },
   get useAnimatedValueXY() {
     return require('./Libraries/Animated/useAnimatedValueXY').default;
   },
