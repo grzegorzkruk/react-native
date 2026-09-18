@@ -4858,9 +4858,6 @@ declare type TBackHandler = {
   ): {
     remove: () => void
   }
-  claimPredictiveBack(): {
-    remove: () => void
-  }
   exitApp(): void
   setInterceptEnabled(enabled: boolean): void
 }
