@@ -13,7 +13,7 @@
 #include <condition_variable>
 #include <optional>
 
-#include <react/renderer/debug/flags.h>
+#include <React/RendererCore.h>
 #include <react/renderer/mounting/Differentiator.h>
 #include <react/renderer/mounting/MountingOverrideDelegate.h>
 #include <react/renderer/mounting/MountingTransaction.h>
@@ -110,6 +110,7 @@ class MountingCoordinator final {
    */
  private:
   friend class ShadowTree;
+  friend class MountingCoordinatorTest;
 
   void push(ShadowTreeRevision revision) const;
 

@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <react/cxxstableapi/FrameworksGuard.h>
+#include <react/cxxstableapi/PrivateGuard.h>
 
 #include <memory>
 
@@ -20,7 +20,6 @@ class ConsoleTaskOrchestrator;
 class ConsoleTask {
  public:
   /**
-   * \param runtimeTargetDelegate The delegate to the corresponding runtime.
    * \param taskContext The context that tracks the task.
    */
   explicit ConsoleTask(std::shared_ptr<ConsoleTaskContext> taskContext);

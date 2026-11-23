@@ -17,13 +17,15 @@ const applyBabelTransformsSeq = require('./utils/applyBabelTransformsSeq');
 const translate = require('flow-api-translator');
 const {parse, print} = require('flow-transform');
 
-type PreTransformFn = ParseResult => Promise<TransformASTResult>;
+type PreTransformFn = (v: ParseResult) => Promise<TransformASTResult>;
 
 const preTransforms: Array<PreTransformFn> = [
   require('./transforms/flow/stripPrivateProperties'),
   require('./transforms/flow/replaceRequiresWithImports'),
   require('./transforms/flow/replaceEmptyWithNever'),
   require('./transforms/flow/replaceStringishWithString'),
+  require('./transforms/flow/replaceLegacyFunctionWithFunction'),
+  require('./transforms/flow/replaceLegacyObjectWithObject'),
   require('./transforms/flow/replaceNullablePropertiesWithUndefined'),
   require('./transforms/flow/reattachDocComments'),
   require('./transforms/flow/ensureNoUnprefixedProps'),

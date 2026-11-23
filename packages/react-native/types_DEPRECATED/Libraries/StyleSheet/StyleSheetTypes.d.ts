@@ -39,8 +39,14 @@ export interface FlexStyle {
   alignItems?: FlexAlignType | undefined;
   alignSelf?: 'auto' | FlexAlignType | undefined;
   aspectRatio?: number | string | undefined;
+  borderBlockEndWidth?: number | undefined;
+  borderBlockStartWidth?: number | undefined;
+  borderBlockWidth?: number | undefined;
   borderBottomWidth?: number | undefined;
   borderEndWidth?: number | undefined;
+  borderInlineEndWidth?: number | undefined;
+  borderInlineStartWidth?: number | undefined;
+  borderInlineWidth?: number | undefined;
   borderLeftWidth?: number | undefined;
   borderRightWidth?: number | undefined;
   borderStartWidth?: number | undefined;
@@ -463,6 +469,9 @@ export interface ViewStyle extends FlexStyle, ShadowStyleIOS, TransformsStyle {
   borderEndColor?: ColorValue | undefined;
   borderEndEndRadius?: AnimatableNumericValue | string | undefined;
   borderEndStartRadius?: AnimatableNumericValue | string | undefined;
+  borderInlineColor?: ColorValue | undefined;
+  borderInlineEndColor?: ColorValue | undefined;
+  borderInlineStartColor?: ColorValue | undefined;
   borderLeftColor?: ColorValue | undefined;
   borderRadius?: AnimatableNumericValue | string | undefined;
   borderRightColor?: ColorValue | undefined;
@@ -649,20 +658,10 @@ export interface TextStyle extends TextStyleIOS, TextStyleAndroid, ViewStyle {
  * Image style
  * @see https://reactnative.dev/docs/image#style
  */
-export interface ImageStyle extends FlexStyle, ShadowStyleIOS, TransformsStyle {
+export interface ImageStyle extends ViewStyle {
   resizeMode?: ImageResizeMode | undefined;
-  backfaceVisibility?: 'visible' | 'hidden' | undefined;
-  borderBottomLeftRadius?: AnimatableNumericValue | string | undefined;
-  borderBottomRightRadius?: AnimatableNumericValue | string | undefined;
-  backgroundColor?: ColorValue | undefined;
-  borderColor?: ColorValue | undefined;
-  borderRadius?: AnimatableNumericValue | string | undefined;
-  borderTopLeftRadius?: AnimatableNumericValue | string | undefined;
-  borderTopRightRadius?: AnimatableNumericValue | string | undefined;
   overflow?: 'visible' | 'hidden' | undefined;
   overlayColor?: ColorValue | undefined;
   tintColor?: ColorValue | undefined;
-  opacity?: AnimatableNumericValue | undefined;
   objectFit?: 'cover' | 'contain' | 'fill' | 'scale-down' | 'none' | undefined;
-  cursor?: CursorValue | undefined;
 }

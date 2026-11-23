@@ -18,6 +18,7 @@ end
 
 header_search_paths = [
   "$(PODS_ROOT)/Headers/Private/React-Core",
+  "$(PODS_ROOT)/Headers/Private/Yoga",
   "$(PODS_TARGET_SRCROOT)/../../../..",
   "$(PODS_TARGET_SRCROOT)/../../../../..",
 ]
@@ -41,7 +42,7 @@ Pod::Spec.new do |s|
   resolve_use_frameworks(s, header_mappings_dir: "./", module_name: "React_RuntimeApple")
 
   s.dependency "React-jsiexecutor"
-  s.dependency "React-cxxreact"
+  add_dependency(s, "React-cxxreact")
   s.dependency "React-callinvoker"
   add_dependency(s, "React-runtimeexecutor", :additional_framework_paths => ["platform/ios"])
   s.dependency "React-runtimescheduler"
@@ -50,6 +51,7 @@ Pod::Spec.new do |s|
   s.dependency "React-CoreModules"
   s.dependency "React-NativeModulesApple"
   s.dependency "React-RCTFabric"
+  s.dependency "Yoga"
   s.dependency "React-RuntimeCore"
   s.dependency "React-Mapbuffer"
   s.dependency "React-jserrorhandler"

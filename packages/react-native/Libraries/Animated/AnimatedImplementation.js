@@ -128,9 +128,9 @@ const _combineCallbacks = function (
 const maybeVectorAnim = function (
   value: AnimatedValue | AnimatedValueXY | AnimatedColor,
   // $FlowFixMe[unclear-type]
-  config: Object,
+  config: any,
   // $FlowFixMe[unclear-type]
-  anim: (value: AnimatedValue, config: Object) => CompositeAnimation,
+  anim: (value: AnimatedValue, config: any) => CompositeAnimation,
 ): ?CompositeAnimation {
   if (value instanceof AnimatedValueXY) {
     const configX = {...config};
@@ -348,23 +348,28 @@ const sequenceImpl = function (
   animations: Array<CompositeAnimation>,
 ): CompositeAnimation {
   let current = 0;
+  let finished = false;
   return {
     start: function (callback?: ?EndCallback, isLooping?: boolean) {
+      if (finished) {
+        // if the start is called, even without a reset, it should start from the beginning
+        current = 0;
+        finished = false;
+      }
+
       const onComplete = function (result: EndResult) {
         if (!result.finished) {
           callback && callback(result);
           return;
         }
 
-        current++;
-
-        if (current === animations.length) {
-          // if the start is called, even without a reset, it should start from the beginning
-          current = 0;
+        if (current === animations.length - 1) {
+          finished = true;
           callback && callback(result);
           return;
         }
 
+        current++;
         animations[current].start(onComplete, isLooping);
       };
 
@@ -388,6 +393,7 @@ const sequenceImpl = function (
         }
       });
       current = 0;
+      finished = false;
     },
 
     _startNativeLoop: function () {
@@ -413,7 +419,7 @@ const parallelImpl = function (
 ): CompositeAnimation {
   let doneCount = 0;
   // Make sure we only call stop() at most once for each animation
-  const hasEnded: {[number]: boolean} = {};
+  const hasEnded: {[key: number]: boolean} = {};
   const stopTogether = !(config && config.stopTogether === false);
 
   const result: CompositeAnimation = {
@@ -559,12 +565,9 @@ const loopImpl = function (
 };
 
 function forkEventImpl(
-  // $FlowFixMe[unclear-type]
-  event: ?AnimatedEvent | ?Function,
-  // $FlowFixMe[unclear-type]
-  listener: Function,
-  // $FlowFixMe[unclear-type]
-): AnimatedEvent | Function {
+  event: ?AnimatedEvent | ?LegacyFunction,
+  listener: LegacyFunction,
+): AnimatedEvent | LegacyFunction {
   if (!event) {
     return listener;
   } else if (event instanceof AnimatedEvent) {
@@ -579,10 +582,8 @@ function forkEventImpl(
 }
 
 function unforkEventImpl(
-  // $FlowFixMe[unclear-type]
-  event: ?AnimatedEvent | ?Function,
-  // $FlowFixMe[unclear-type]
-  listener: Function,
+  event: ?AnimatedEvent | ?LegacyFunction,
+  listener: LegacyFunction,
 ): void {
   if (event && event instanceof AnimatedEvent) {
     event.__removeListener(listener);

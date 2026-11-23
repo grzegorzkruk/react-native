@@ -60,7 +60,7 @@ const Item = ({item, separators}: ListRenderItemInfo<string>) => {
 };
 
 type Props = Readonly<{
-  exampleProps: Partial<React.ElementConfig<typeof FlatList>>,
+  exampleProps: Partial<React.ComponentProps<typeof FlatList>>,
   exampleTestID?: ?string,
   onTest?: ?() => void,
   testLabel?: ?string,
@@ -91,14 +91,11 @@ const BaseFlatListExample: component(
       {props.children}
       <FlatList
         {...props.exampleProps}
-        // $FlowFixMe[incompatible-type]
         ref={ref}
         testID="flat_list"
-        // $FlowFixMe[incompatible-type]
         data={DATA}
         keyExtractor={(item, index) => item + index}
         style={styles.list}
-        // $FlowFixMe[incompatible-type]
         renderItem={Item}
       />
     </View>

@@ -152,7 +152,7 @@ describe('readReactNativeConfig', () => {
   const CONFIG_THROWS = "throw new ReferenceError('module is not defined');";
 
   function withProjectRoot(
-    files: {[string]: string},
+    files: {[key: string]: string},
     assertion: (config: $FlowFixMe) => void,
   ) {
     const projectRoot = fs.mkdtempSync(
@@ -297,7 +297,7 @@ describe('generateRCTThirdPartyComponents', () => {
         'utf8',
       );
       expect(generatedFile).toContain(
-        '@"ExampleComponent": NSClassFromString(@"RCTExampleComponent"), // component-library',
+        '@"ExampleComponent": @"RCTExampleComponent", // component-library',
       );
     } finally {
       fs.rmSync(libraryPath, {recursive: true, force: true});
@@ -426,7 +426,7 @@ describe('delete empty files and folders', () => {
     ];
 
     const emptyContent = [] as Array<string>;
-    let fileSizes = {} as {[string]: number};
+    let fileSizes = {} as {[key: string]: number};
     fileSizes[path.normalize('build/emptyFile')] = 0;
     fileSizes[path.normalize('build/notEmptyFile')] = 32;
 

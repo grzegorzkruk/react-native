@@ -118,9 +118,13 @@ class ReactInstanceTest : public ::testing::Test {
  protected:
   ReactInstanceTest() = default;
 
+  virtual ::hermes::vm::RuntimeConfig makeRuntimeConfig() {
+    return {};
+  }
+
   void SetUp() override {
-    auto runtime =
-        std::make_unique<JSIRuntimeHolder>(hermes::makeHermesRuntime());
+    auto runtime = std::make_unique<JSIRuntimeHolder>(
+        hermes::makeHermesRuntime(makeRuntimeConfig()));
     runtime_ = &runtime->getRuntime();
     messageQueueThread_ = std::make_shared<MockMessageQueueThread>();
     auto mockRegistry = std::make_unique<MockTimerRegistry>();
@@ -253,6 +257,53 @@ TEST_F(ReactInstanceTest, testBridgelessFlagIsSet) {
   initializeRuntimeWithScript("");
   auto val = eval("RN$Bridgeless === true");
   EXPECT_EQ(val.getBool(), true);
+}
+
+TEST_F(ReactInstanceTest, testGlobalEvalWithSourceUrlIsInstalled) {
+  auto before =
+      tryEval("typeof globalEvalWithSourceUrl === 'function'", "false");
+  EXPECT_EQ(before.getBool(), false);
+  initializeRuntimeWithScript("");
+  auto isFn = eval("typeof globalEvalWithSourceUrl === 'function'");
+  EXPECT_EQ(isFn.getBool(), true);
+  auto result = eval("globalEvalWithSourceUrl('1 + 2')");
+  EXPECT_EQ(result.getNumber(), 3);
+}
+
+TEST_F(
+    ReactInstanceTest,
+    testGlobalEvalWithSourceUrlMatchesEvalWhenEvalIsEnabled) {
+  initializeRuntimeWithScript("");
+
+  EXPECT_EQ(eval("eval('1 + 2')").getNumber(), 3);
+  EXPECT_EQ(
+      eval("globalEvalWithSourceUrl('1 + 2', 'chunk.js')").getNumber(), 3);
+}
+
+// Hermes gates eval() and the Function constructor behind
+// RuntimeConfig::EnableEval, but Runtime::evaluateJavaScript is not gated.
+// globalEvalWithSourceUrl goes through the latter, which is why the debug
+// bundle loaders prefer it over eval().
+class ReactInstanceWithoutEvalTest : public ReactInstanceTest {
+ protected:
+  ::hermes::vm::RuntimeConfig makeRuntimeConfig() override {
+    return ::hermes::vm::RuntimeConfig::Builder().withEnableEval(false).build();
+  }
+};
+
+TEST_F(
+    ReactInstanceWithoutEvalTest,
+    testGlobalEvalWithSourceUrlWorksWhenEvalIsDisabled) {
+  initializeRuntimeWithScript("");
+
+  auto evalOutcome = eval(
+      "(function() { try { eval('1 + 2'); return 'no error'; } catch (e) { return String(e.message); } })()");
+  EXPECT_THAT(
+      evalOutcome.getString(*runtime_).utf8(*runtime_),
+      HasSubstr("Parsing source code unsupported"));
+
+  EXPECT_EQ(
+      eval("globalEvalWithSourceUrl('1 + 2', 'chunk.js')").getNumber(), 3);
 }
 
 TEST_F(ReactInstanceTest, testProfilingFlag) {
@@ -768,6 +819,88 @@ function getResult() {
                     .getPropertyAsFunction(*runtime_, "getResult")
                     .call(*runtime_);
   EXPECT_EQ(result.getNumber(), 1);
+}
+
+TEST_F(ReactInstanceTest, testCallFunctionOnModule_withArgFactory) {
+  initializeRuntimeWithScript(R"xyz123(
+let result;
+const module = {
+  bar: (a, b) => {
+    result = a + ':' + b;
+  },
+};
+RN$registerCallableModule('foo', () => module);
+function getResult() {
+  return result;
+}
+  )xyz123");
+
+  instance_->callFunctionOnModule(
+      "foo", "bar", [](jsi::Runtime& runtime, std::vector<jsi::Value>& args) {
+        args.emplace_back(jsi::String::createFromAscii(runtime, "baz"));
+        args.emplace_back(2);
+      });
+  step();
+
+  auto result = runtime_->global()
+                    .getPropertyAsFunction(*runtime_, "getResult")
+                    .call(*runtime_);
+  EXPECT_EQ(result.getString(*runtime_).utf8(*runtime_), "baz:2");
+}
+
+TEST_F(ReactInstanceTest, testCallFunctionOnModule_withEmptyArgFactory) {
+  initializeRuntimeWithScript(R"xyz123(
+let result;
+const module = {
+  bar: (...args) => {
+    result = args.length;
+  },
+};
+RN$registerCallableModule('foo', () => module);
+function getResult() {
+  return result;
+}
+  )xyz123");
+
+  instance_->callFunctionOnModule("foo", "bar", ReactInstance::ArgFactory{});
+  step();
+
+  auto result = runtime_->global()
+                    .getPropertyAsFunction(*runtime_, "getResult")
+                    .call(*runtime_);
+  EXPECT_EQ(result.getNumber(), 0);
+}
+
+TEST_F(ReactInstanceTest, testCallFunctionOnModule_withEmptyNames) {
+  initializeRuntimeWithScript(R"xyz123(
+let calls = 0;
+const module = {
+  bar: () => {
+    calls++;
+  },
+};
+RN$registerCallableModule('foo', () => module);
+function getCalls() {
+  return calls;
+}
+  )xyz123");
+
+  bool argFactoryCalled = false;
+  auto argFactory = [&](jsi::Runtime& /*runtime*/,
+                        std::vector<jsi::Value>& /*args*/) {
+    argFactoryCalled = true;
+  };
+  instance_->callFunctionOnModule("", "bar", argFactory);
+  instance_->callFunctionOnModule("foo", "", argFactory);
+  instance_->callFunctionOnModule("", "bar", folly::dynamic::array());
+  instance_->callFunctionOnModule("foo", "", folly::dynamic::array());
+  step();
+
+  EXPECT_FALSE(argFactoryCalled);
+  auto calls = runtime_->global()
+                   .getPropertyAsFunction(*runtime_, "getCalls")
+                   .call(*runtime_);
+  EXPECT_EQ(calls.getNumber(), 0);
 }
 
 } // namespace facebook::react

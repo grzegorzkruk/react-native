@@ -10,6 +10,7 @@
 
 import type {RNTesterModule} from '../../types/RNTesterTypes';
 
+import RNTesterText from '../../components/RNTesterText';
 import * as PressableExampleFbInternal from './PressableExampleFbInternal';
 import * as React from 'react';
 import {
@@ -191,8 +192,12 @@ function ForceTouchExample() {
           style={styles.wrapper}
           testID="pressable_3dtouch_button"
           onStartShouldSetResponder={() => true}
-          // $FlowFixMe[sketchy-null-number]
-          onResponderMove={event => setForce(event.nativeEvent?.force || 1)}
+          onResponderMove={event => {
+            const touchForce = event.nativeEvent?.force;
+            setForce(
+              touchForce != null && Boolean(touchForce) ? touchForce : 1,
+            );
+          }}
           onResponderRelease={event => setForce(0)}>
           <Text style={styles.button}>Press Me</Text>
         </View>
@@ -255,7 +260,17 @@ function PressableNativeMethods() {
   );
 }
 
+const DISABLED_OPTIONS: Array<{label: string, value: ?boolean}> = [
+  {label: 'true', value: true},
+  {label: 'false', value: false},
+  {label: 'undefined', value: undefined},
+  {label: 'null', value: null},
+];
+
 function PressableDisabled() {
+  const [disabled, setDisabled] = useState<?boolean>(true);
+  const [timesPressed, setTimesPressed] = useState(0);
+
   return (
     <>
       <Pressable disabled={true} style={[styles.row, styles.block]}>
@@ -271,7 +286,56 @@ function PressableDisabled() {
         ]}>
         <Text style={styles.button}>Enabled Pressable</Text>
       </Pressable>
+
+      <View style={[styles.row, styles.block]}>
+        {DISABLED_OPTIONS.map(option => (
+          <Pressable
+            key={option.label}
+            onPress={() => setDisabled(option.value)}
+            style={[
+              styles.disabledOption,
+              disabled === option.value && styles.disabledOptionSelected,
+            ]}>
+            <RNTesterText
+              style={
+                disabled === option.value && styles.disabledOptionSelectedText
+              }>
+              {option.label}
+            </RNTesterText>
+          </Pressable>
+        ))}
+      </View>
+      <Pressable
+        disabled={disabled}
+        onPress={() => setTimesPressed(current => current + 1)}
+        style={({pressed}) => [
+          {opacity: pressed ? 0.5 : 1},
+          styles.row,
+          styles.block,
+          styles.disabledToggleTarget,
+        ]}>
+        <Text style={disabled === true ? styles.disabledButton : styles.button}>
+          {`disabled={${String(disabled)}}`} pressed {timesPressed} times
+        </Text>
+      </Pressable>
     </>
+  );
+}
+
+function RoundedPressableExample() {
+  return (
+    <View>
+      <Pressable
+        android_ripple={{color: 'red', borderless: false}}
+        style={styles.roundedPressable}>
+        <Text style={{alignSelf: 'center'}}>Background Ripple</Text>
+      </Pressable>
+      <Pressable
+        android_ripple={{color: 'red', borderless: false, foreground: true}}
+        style={styles.roundedPressable}>
+        <Text style={{alignSelf: 'center'}}>Foreground Ripple</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -295,6 +359,25 @@ const styles = StyleSheet.create({
   disabledButton: {
     color: '#007AFF',
     opacity: 0.5,
+  },
+  disabledOption: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginHorizontal: 4,
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#007AFF',
+  },
+  disabledOptionSelected: {
+    backgroundColor: '#cce4ff',
+  },
+  disabledOptionSelectedText: {
+    color: 'black',
+  },
+  disabledToggleTarget: {
+    padding: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#007AFF',
   },
   hitSlopButton: {
     color: 'white',
@@ -343,6 +426,12 @@ const styles = StyleSheet.create({
   image: {
     height: 100,
     width: 100,
+  },
+  roundedPressable: {
+    backgroundColor: '#eee',
+    borderRadius: 100,
+    padding: 16,
+    marginTop: 10,
   },
 });
 
@@ -507,7 +596,7 @@ const examples = [
                 style={styles.image}
               />
             </Pressable>
-            <Text>use foreground</Text>
+            <RNTesterText>use foreground</RNTesterText>
           </View>
         </View>
       );
@@ -659,6 +748,15 @@ const examples = [
           />
         </Pressable>
       );
+    },
+  },
+  {
+    title: 'Rounded Pressable with Ripple',
+    description:
+      'Ripple should clip to the border radius of the Pressable' as string,
+    platform: 'android',
+    render: function (): React.Node {
+      return <RoundedPressableExample />;
     },
   },
   ...PressableExampleFbInternal.examples,

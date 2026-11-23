@@ -66,7 +66,7 @@ const Item = ({item, section, separators}) => {
 
 type Props = Readonly<{
   // $FlowFixMe[unclear-type]
-  exampleProps: Partial<React.ElementConfig<typeof SectionList<any>>>,
+  exampleProps: Partial<React.ComponentProps<typeof SectionList<any>>>,
   exampleTestID?: ?string,
   onTest?: ?() => void,
   testLabel?: ?string,
@@ -111,8 +111,6 @@ const SectionListBaseExample: component(
         keyExtractor={(item, index) => item + index}
         style={styles.list}
         renderItem={Item}
-        /* $FlowFixMe[prop-missing] Error revealed after improved builtin React
-         * utility types */
         renderSectionHeader={({section: {title}}) => (
           <Text style={styles.header}>{title}</Text>
         )}

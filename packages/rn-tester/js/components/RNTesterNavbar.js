@@ -16,7 +16,7 @@ import * as React from 'react';
 import {useContext} from 'react';
 import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 
-type NavBarOnPressHandler = ({screen: ScreenTypes}) => void;
+type NavBarOnPressHandler = (v: {screen: ScreenTypes}) => void;
 
 /* $FlowFixMe[missing-local-annot] The type annotation(s) required by Flow's
  * LTI update could not be added via codemod */
@@ -141,13 +141,13 @@ const RNTesterNavbar = ({
           handleNavBarPress={handleNavBarPress}
           theme={theme}
         />
-        <PlaygroundTab
-          isComponentActive={isPlaygroundActive}
+        <APITab
+          isAPIActive={isAPIActive}
           handleNavBarPress={handleNavBarPress}
           theme={theme}
         />
-        <APITab
-          isAPIActive={isAPIActive}
+        <PlaygroundTab
+          isComponentActive={isPlaygroundActive}
           handleNavBarPress={handleNavBarPress}
           theme={theme}
         />

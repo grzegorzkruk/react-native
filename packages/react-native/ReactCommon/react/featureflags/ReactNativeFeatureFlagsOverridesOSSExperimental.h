@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<ed015255bfc4c47dfb63b99bc8146b78>>
+ * @generated SignedSource<<7ab782a8fdd8d14812708959ed8eb11f>>
  */
 
 /**
@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <react/cxxstableapi/UmbrellaGuard.h>
+#include <react/cxxstableapi/PrivateGuard.h>
 
 #include <react/featureflags/ReactNativeFeatureFlagsOverridesOSSCanary.h>
 
@@ -28,6 +28,10 @@ namespace facebook::react {
 class ReactNativeFeatureFlagsOverridesOSSExperimental : public ReactNativeFeatureFlagsOverridesOSSCanary {
  public:
     ReactNativeFeatureFlagsOverridesOSSExperimental() = default;
+
+  bool disableIdleEventDispatchFrameCallbackRearmAndroid() override {
+    return true;
+  }
 
   bool disableIdleMountItemFrameCallbackRearmAndroid() override {
     return true;
@@ -38,10 +42,6 @@ class ReactNativeFeatureFlagsOverridesOSSExperimental : public ReactNativeFeatur
   }
 
   bool preventShadowTreeCommitExhaustion() override {
-    return true;
-  }
-
-  bool useSharedAnimatedBackend() override {
     return true;
   }
 };

@@ -11,7 +11,6 @@
 
 #include <memory>
 #include <mutex>
-#include <shared_mutex>
 
 #include <react/renderer/core/EventEmitter.h>
 #include <react/renderer/core/InstanceHandle.h>
@@ -20,6 +19,7 @@
 namespace facebook::react {
 
 class ComponentDescriptor;
+class Props;
 class ShadowNode;
 class State;
 
@@ -90,9 +90,15 @@ class ShadowNodeFamily final : public jsi::NativeState {
   SharedEventEmitter getEventEmitter() const;
 
   /**
+   * @param callback will be executed when this ShadowNodeFamily is destroyed.
+   */
+  void onFamilyDestroyed(std::function<void(const ShadowNodeFamily &family)> callback);
+
+  /**
    * @param callback will be executed when an unmounted instance of
    * ShadowNodeFamily is destroyed.
    */
+  [[deprecated("Use onFamilyDestroyed and check hasBeenMounted() instead")]]
   void onUnmountedFamilyDestroyed(std::function<void(const ShadowNodeFamily &family)> callback);
 
   /*
@@ -102,21 +108,40 @@ class ShadowNodeFamily final : public jsi::NativeState {
   void setMostRecentState(const std::shared_ptr<const State> &state);
 
   /**
-   * Mark this ShadowNodeFamily as mounted.
+   * Mark this ShadowNodeFamily as part of a committed shadow tree.
    */
   void setMounted();
+
+  /**
+   * Whether this ShadowNodeFamily was ever part of a committed shadow tree.
+   * Its view may not have been mounted on the platform yet.
+   */
+  bool hasBeenMounted() const;
 
   /*
    * Dispatches a state update with given priority.
    */
   void dispatchRawState(StateUpdate &&stateUpdate, EventQueue::UpdateMode updateMode);
 
+  struct NativeProps_DEPRECATED {
+    explicit NativeProps_DEPRECATED(folly::dynamic props) : props(std::move(props)) {}
+
+    folly::dynamic props;
+
+    /*
+     * The props of a shadow node that already include `props`, so that
+     * cloning that node doesn't apply them again.
+     */
+    std::shared_ptr<const Props> appliedProps = nullptr;
+  };
+
   /*
    * Holds currently applied native props. `nullptr` if setNativeProps API is
    * not used. It is used to backport setNativeProps API from the old
-   * architecture and will be removed in the future.
+   * architecture and will be removed in the future. Guarded by
+   * `nativePropsMutex`.
    */
-  mutable std::unique_ptr<folly::dynamic> nativeProps_DEPRECATED;
+  mutable std::unique_ptr<NativeProps_DEPRECATED> nativeProps_DEPRECATED;
   mutable std::mutex nativePropsMutex;
 
   /**
@@ -129,8 +154,7 @@ class ShadowNodeFamily final : public jsi::NativeState {
   void setInstanceHandle(InstanceHandle::Shared &instanceHandle);
 
   /**
-   * Override destructor to call onUnmountedFamilyDestroyedCallback() for
-   * ShadowViews that were preallocated but never mounted on the screen.
+   * Calls the callback set by onFamilyDestroyed.
    */
   ~ShadowNodeFamily();
 
@@ -147,9 +171,9 @@ class ShadowNodeFamily final : public jsi::NativeState {
 
   EventDispatcher::Weak eventDispatcher_;
   std::shared_ptr<const State> mostRecentState_;
-  mutable std::shared_mutex mutex_;
+  mutable std::mutex mutex_;
 
-  std::function<void(ShadowNodeFamily &family)> onUnmountedFamilyDestroyedCallback_ = nullptr;
+  std::function<void(ShadowNodeFamily &family)> onFamilyDestroyedCallback_ = nullptr;
 
   /*
    * Deprecated.
@@ -197,7 +221,7 @@ class ShadowNodeFamily final : public jsi::NativeState {
   bool hasParent_{false};
 
   /*
-   * Determines if the ShadowNodeFamily was ever mounted on the screen.
+   * Determines if the ShadowNodeFamily was ever part of a committed shadow tree.
    */
   bool hasBeenMounted_{false};
 };

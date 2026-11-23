@@ -45,8 +45,7 @@ export type {EventSubscription, EmitterSubscription};
 /** @deprecated Use `EventSubscription` instead. */
 export type NativeEventSubscription = EventSubscription;
 
-// $FlowFixMe[unclear-type] unclear type of events
-type UnsafeNativeEventObject = Object;
+type UnsafeNativeEventObject = LegacyObject;
 
 /**
  * `NativeEventEmitter` is intended for use by Native Modules to emit events to
@@ -78,10 +77,8 @@ export default class NativeEventEmitter<
     }
 
     const hasAddListener =
-      // $FlowFixMe[method-unbinding] added when improving typing for this parameters
       !!nativeModule && typeof nativeModule.addListener === 'function';
     const hasRemoveListeners =
-      // $FlowFixMe[method-unbinding] added when improving typing for this parameters
       !!nativeModule && typeof nativeModule.removeListeners === 'function';
 
     if (nativeModule && hasAddListener && hasRemoveListeners) {

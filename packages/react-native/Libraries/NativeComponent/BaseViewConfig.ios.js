@@ -179,6 +179,9 @@ const directEventTypes = {
   topLayout: {
     registrationName: 'onLayout',
   },
+  topSafeAreaInsetsChange: {
+    registrationName: 'experimental_onSafeAreaInsetsChange',
+  },
   onGestureHandlerEvent: DynamicallyInjectedByGestureHandler({
     registrationName: 'onGestureHandlerEvent',
   }),
@@ -240,9 +243,11 @@ const validAttributesForNonEventProps = {
   borderRadius: true,
   borderColor: colorAttribute,
   borderBlockColor: colorAttribute,
+  borderInlineColor: colorAttribute,
   borderCurve: true,
   borderWidth: true,
   borderBlockWidth: true,
+  borderInlineWidth: true,
   borderStyle: true,
   hitSlop: {diff: require('../Utilities/differ/insetsDiffer').default},
   collapsable: true,
@@ -264,10 +269,14 @@ const validAttributesForNonEventProps = {
   borderBlockStartWidth: true,
   borderStartColor: colorAttribute,
   borderBlockStartColor: colorAttribute,
+  borderInlineStartWidth: true,
+  borderInlineStartColor: colorAttribute,
   borderEndWidth: true,
   borderBlockEndWidth: true,
   borderEndColor: colorAttribute,
   borderBlockEndColor: colorAttribute,
+  borderInlineEndWidth: true,
+  borderInlineEndColor: colorAttribute,
 
   borderTopLeftRadius: true,
   borderTopRightRadius: true,
@@ -380,6 +389,7 @@ const validAttributesForNonEventProps = {
 // Props for bubbling and direct events
 const validAttributesForEventProps = ConditionallyIgnoredEventHandlers({
   onLayout: true,
+  experimental_onSafeAreaInsetsChange: true,
   onMagicTap: true,
 
   // Accessibility

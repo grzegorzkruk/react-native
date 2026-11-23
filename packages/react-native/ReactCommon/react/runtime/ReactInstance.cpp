@@ -20,7 +20,6 @@
 #include <react/featureflags/ReactNativeFeatureFlags.h>
 #include <react/performance/timeline/PerformanceEntryReporter.h>
 #include <react/renderer/runtimescheduler/RuntimeSchedulerBinding.h>
-#include <react/renderer/runtimescheduler/RuntimeSchedulerCallInvoker.h>
 #include <react/runtime/JSRuntimeBindings.h>
 #include <react/timing/primitives.h>
 #include <react/utils/jsi-utils.h>
@@ -221,16 +220,8 @@ ReactInstance::getRuntimeScheduler() noexcept {
 }
 
 std::shared_ptr<CallInvoker> ReactInstance::createJSCallInvoker() noexcept {
-  if (ReactNativeFeatureFlags::enableBufferedCallInvoker()) {
-    return std::make_shared<CallInvokerImpl>(
-        bufferedRuntimeExecutor_, runtimeScheduler_);
-  }
-  // The flag-off path, and the last use of the deprecated invoker. It goes when
-  // `enableBufferedCallInvoker` is cleaned up.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  return std::make_shared<RuntimeSchedulerCallInvoker>(runtimeScheduler_);
-#pragma clang diagnostic pop
+  return std::make_shared<CallInvokerImpl>(
+      bufferedRuntimeExecutor_, runtimeScheduler_);
 }
 
 namespace {
@@ -318,6 +309,60 @@ void ReactInstance::loadScript(
       });
 }
 
+namespace {
+
+/*
+ * Calls a method on a JS module that has been registered with
+ * `registerCallableModule`, with the arguments that `addArgs` adds.
+ */
+template <typename AddArgs>
+void callCallableModuleMethod(
+    jsi::Runtime& runtime,
+    std::unordered_map<std::string, std::variant<jsi::Function, jsi::Object>>&
+        callableModules,
+    const std::string& moduleName,
+    const std::string& methodName,
+    const AddArgs& addArgs) {
+  TraceSection s(
+      "ReactInstance::callFunctionOnModule",
+      "moduleName",
+      moduleName,
+      "methodName",
+      methodName);
+  auto it = callableModules.find(moduleName);
+  if (it == callableModules.end()) {
+    std::ostringstream knownModules;
+    int i = 0;
+    for (it = callableModules.begin(); it != callableModules.end(); it++, i++) {
+      const char* space = (i > 0 ? ", " : " ");
+      knownModules << space << it->first;
+    }
+    throw jsi::JSError(
+        runtime,
+        "Failed to call into JavaScript module method " + moduleName + "." +
+            methodName +
+            "(). Module has not been registered as callable. Registered callable JavaScript modules (n = " +
+            std::to_string(callableModules.size()) + "):" + knownModules.str() +
+            ". Did you forget to call `registerCallableModule`?");
+  }
+
+  if (std::holds_alternative<jsi::Function>(it->second)) {
+    auto module =
+        std::get<jsi::Function>(it->second).call(runtime).asObject(runtime);
+    it->second = std::move(module);
+  }
+
+  auto& module = std::get<jsi::Object>(it->second);
+  auto method = module.getPropertyAsFunction(runtime, methodName.c_str());
+
+  std::vector<jsi::Value> jsArgs;
+  addArgs(jsArgs);
+  method.callWithThis(
+      runtime, module, (const jsi::Value*)jsArgs.data(), jsArgs.size());
+}
+
+} // namespace
+
 /*
  * Calls a method on a JS module that has been registered with
  * `registerCallableModule`. Used to invoke a JS function from platform code.
@@ -326,52 +371,51 @@ void ReactInstance::callFunctionOnModule(
     const std::string& moduleName,
     const std::string& methodName,
     folly::dynamic&& args) {
-  bufferedRuntimeExecutor_->execute([this,
-                                     moduleName = moduleName,
-                                     methodName = methodName,
-                                     args = std::move(args)](
-                                        jsi::Runtime& runtime) {
-    TraceSection s(
-        "ReactInstance::callFunctionOnModule",
-        "moduleName",
-        moduleName,
-        "methodName",
-        methodName);
-    auto it = callableModules_.find(moduleName);
-    if (it == callableModules_.end()) {
-      std::ostringstream knownModules;
-      int i = 0;
-      for (it = callableModules_.begin(); it != callableModules_.end();
-           it++, i++) {
-        const char* space = (i > 0 ? ", " : " ");
-        knownModules << space << it->first;
-      }
-      throw jsi::JSError(
-          runtime,
-          "Failed to call into JavaScript module method " + moduleName + "." +
-              methodName +
-              "(). Module has not been registered as callable. Registered callable JavaScript modules (n = " +
-              std::to_string(callableModules_.size()) +
-              "):" + knownModules.str() +
-              ". Did you forget to call `registerCallableModule`?");
-    }
+  if (moduleName.empty() || methodName.empty()) {
+    return;
+  }
+  bufferedRuntimeExecutor_->execute(
+      [this,
+       moduleName = moduleName,
+       methodName = methodName,
+       args = std::move(args)](jsi::Runtime& runtime) {
+        callCallableModuleMethod(
+            runtime,
+            callableModules_,
+            moduleName,
+            methodName,
+            [&](std::vector<jsi::Value>& jsArgs) {
+              jsArgs.reserve(args.size());
+              for (auto& arg : args) {
+                jsArgs.push_back(jsi::valueFromDynamic(runtime, arg));
+              }
+            });
+      });
+}
 
-    if (std::holds_alternative<jsi::Function>(it->second)) {
-      auto module =
-          std::get<jsi::Function>(it->second).call(runtime).asObject(runtime);
-      it->second = std::move(module);
-    }
-
-    auto& module = std::get<jsi::Object>(it->second);
-    auto method = module.getPropertyAsFunction(runtime, methodName.c_str());
-
-    std::vector<jsi::Value> jsArgs;
-    for (auto& arg : args) {
-      jsArgs.push_back(jsi::valueFromDynamic(runtime, arg));
-    }
-    method.callWithThis(
-        runtime, module, (const jsi::Value*)jsArgs.data(), jsArgs.size());
-  });
+void ReactInstance::callFunctionOnModule(
+    const std::string& moduleName,
+    const std::string& methodName,
+    ArgFactory&& argFactory) {
+  if (moduleName.empty() || methodName.empty()) {
+    return;
+  }
+  bufferedRuntimeExecutor_->execute(
+      [this,
+       moduleName = moduleName,
+       methodName = methodName,
+       argFactory = std::move(argFactory)](jsi::Runtime& runtime) {
+        callCallableModuleMethod(
+            runtime,
+            callableModules_,
+            moduleName,
+            methodName,
+            [&](std::vector<jsi::Value>& jsArgs) {
+              if (argFactory) {
+                argFactory(runtime, jsArgs);
+              }
+            });
+      });
 }
 
 void ReactInstance::registerSegment(
@@ -457,6 +501,39 @@ void ReactInstance::initializeRuntime(
     runtime_->unstable_initializeOnJsThread();
 
     defineReactInstanceFlags(runtime, options);
+
+    // Bridge JSIExecutor installs this so debug bundle loaders can evaluate
+    // fetched Metro source through Runtime::evaluateJavaScript, with a source
+    // URL for stack traces. Unlike JS eval(), that path is not disabled by
+    // Hermes' RuntimeConfig::EnableEval or by lean engine builds. Left
+    // writable, like in JSIExecutor, so hosts can override or wrap it.
+    runtime.global().setProperty(
+        runtime,
+        "globalEvalWithSourceUrl",
+        jsi::Function::createFromHostFunction(
+            runtime,
+            jsi::PropNameID::forAscii(runtime, "globalEvalWithSourceUrl"),
+            2,
+            [](jsi::Runtime& rt,
+               const jsi::Value& /*thisValue*/,
+               const jsi::Value* args,
+               size_t count) {
+              if (count != 1 && count != 2) {
+                throw jsi::JSError(
+                    rt, "globalEvalWithSourceUrl arg count must be 1 or 2");
+              }
+
+              // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+              auto code = args[0].asString(rt).utf8(rt);
+              std::string url;
+              if (count > 1 && args[1].isString()) {
+                url = args[1].asString(rt).utf8(rt);
+              }
+              // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
+              return rt.evaluateJavaScript(
+                  std::make_unique<jsi::StringBuffer>(std::move(code)), url);
+            }));
 
     defineReadOnlyGlobal(
         runtime,

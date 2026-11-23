@@ -17,7 +17,7 @@ export class SyntheticError extends Error {
   name: string = '';
 }
 
-type ExceptionDecorator = ExceptionData => ExceptionData;
+type ExceptionDecorator = (v: ExceptionData) => ExceptionData;
 
 let userExceptionDecorator: ?ExceptionDecorator;
 let inUserExceptionDecorator = false;
@@ -77,7 +77,7 @@ function reportException(
   }
 
   // $FlowFixMe[unclear-type]
-  const extraData: Object = {
+  const extraData: any = {
     // $FlowFixMe[incompatible-use] we can't define a type with a Symbol-keyed field in flow
     ...e[decoratedExtraDataKey],
     jsEngine: e.jsEngine,
@@ -163,12 +163,11 @@ function handleException(e: unknown, isFatal: boolean) {
       // Unfortunately there is no way to figure out the stacktrace in this
       // case, so if you ended up here trying to trace an error, look for
       // `throw '<error message>'` somewhere in your codebase.
+      // $FlowFixMe[incompatible-type]
       error = new SyntheticError(e);
     }
     try {
       inExceptionHandler = true;
-      /* $FlowFixMe[class-object-subtyping] added when improving typing for this
-       * parameters */
       // $FlowFixMe[incompatible-type]
       reportException(error, isFatal, reportToConsole);
     } finally {
@@ -257,8 +256,6 @@ function reactConsoleErrorHandler(...args) {
       return;
     }
     reportException(
-      /* $FlowFixMe[class-object-subtyping] added when improving typing for this
-       * parameters */
       // $FlowFixMe[incompatible-type]
       error,
       isFatal,

@@ -82,6 +82,10 @@ const Components: Array<RNTesterModuleInfo> = [
     module: require('../examples/RefreshControl/RefreshControlExample'),
   },
   {
+    key: 'SafeAreaInsetsExample',
+    module: require('../examples/SafeAreaInsets/SafeAreaInsetsExample'),
+  },
+  {
     key: 'ScrollViewExample',
     category: 'Basic',
     module: require('../examples/ScrollView/ScrollViewExample'),
@@ -391,7 +395,6 @@ const APIs: Array<RNTesterModuleInfo> = (
       module: require('../examples/TurboModule/TurboCxxModuleExample'),
     },
     // Basic check to detect the availability of the IntersectionObserver API.
-    // $FlowExpectedError[cannot-resolve-name]
     ...(typeof IntersectionObserver === 'function'
       ? [
           {
@@ -402,7 +405,6 @@ const APIs: Array<RNTesterModuleInfo> = (
         ]
       : []),
     // Basic check to detect the availability of the MutationObserver API.
-    // $FlowExpectedError[cannot-resolve-name]
     ...(typeof MutationObserver === 'function'
       ? [
           {
@@ -413,7 +415,6 @@ const APIs: Array<RNTesterModuleInfo> = (
         ]
       : []),
     // Basic check to detect the availability of the ResizeObserver API.
-    // $FlowExpectedError[cannot-resolve-name]
     ...(typeof ResizeObserver === 'function'
       ? [
           {

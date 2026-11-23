@@ -1,22 +1,30 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`LogBoxNotificationContainer should render both an error and warning notification 1`] = `
-<SafeAreaView
+<View
+  experimental_onSafeAreaInsetsChange={[Function]}
   style={
-    Object {
-      "bottom": 20,
-      "left": 10,
-      "position": "absolute",
-      "right": 10,
-    }
+    Array [
+      Object {
+        "alignItems": "center",
+        "bottom": 20,
+        "left": 10,
+        "pointerEvents": "box-none",
+        "position": "absolute",
+        "right": 10,
+      },
+      null,
+    ]
   }
 >
   <View
     style={
       Object {
-        "borderRadius": 8,
+        "borderRadius": 12,
         "marginBottom": 5,
+        "maxWidth": 600,
         "overflow": "hidden",
+        "width": "100%",
       }
     }
   >
@@ -59,9 +67,11 @@ exports[`LogBoxNotificationContainer should render both an error and warning not
   <View
     style={
       Object {
-        "borderRadius": 8,
+        "borderRadius": 12,
         "marginBottom": 5,
+        "maxWidth": 600,
         "overflow": "hidden",
+        "width": "100%",
       }
     }
   >
@@ -101,7 +111,7 @@ exports[`LogBoxNotificationContainer should render both an error and warning not
       totalLogCount={1}
     />
   </View>
-</SafeAreaView>
+</View>
 `;
 
 exports[`LogBoxNotificationContainer should render null with no logs 1`] = `null`;
@@ -113,22 +123,30 @@ exports[`LogBoxNotificationContainer should render selected fatal error even whe
 exports[`LogBoxNotificationContainer should render selected syntax error even when disabled 1`] = `null`;
 
 exports[`LogBoxNotificationContainer should render the latest error notification 1`] = `
-<SafeAreaView
+<View
+  experimental_onSafeAreaInsetsChange={[Function]}
   style={
-    Object {
-      "bottom": 20,
-      "left": 10,
-      "position": "absolute",
-      "right": 10,
-    }
+    Array [
+      Object {
+        "alignItems": "center",
+        "bottom": 20,
+        "left": 10,
+        "pointerEvents": "box-none",
+        "position": "absolute",
+        "right": 10,
+      },
+      null,
+    ]
   }
 >
   <View
     style={
       Object {
-        "borderRadius": 8,
+        "borderRadius": 12,
         "marginBottom": 5,
+        "maxWidth": 600,
         "overflow": "hidden",
+        "width": "100%",
       }
     }
   >
@@ -168,26 +186,34 @@ exports[`LogBoxNotificationContainer should render the latest error notification
       totalLogCount={2}
     />
   </View>
-</SafeAreaView>
+</View>
 `;
 
 exports[`LogBoxNotificationContainer should render the latest warning notification 1`] = `
-<SafeAreaView
+<View
+  experimental_onSafeAreaInsetsChange={[Function]}
   style={
-    Object {
-      "bottom": 20,
-      "left": 10,
-      "position": "absolute",
-      "right": 10,
-    }
+    Array [
+      Object {
+        "alignItems": "center",
+        "bottom": 20,
+        "left": 10,
+        "pointerEvents": "box-none",
+        "position": "absolute",
+        "right": 10,
+      },
+      null,
+    ]
   }
 >
   <View
     style={
       Object {
-        "borderRadius": 8,
+        "borderRadius": 12,
         "marginBottom": 5,
+        "maxWidth": 600,
         "overflow": "hidden",
+        "width": "100%",
       }
     }
   >
@@ -227,5 +253,5 @@ exports[`LogBoxNotificationContainer should render the latest warning notificati
       totalLogCount={2}
     />
   </View>
-</SafeAreaView>
+</View>
 `;

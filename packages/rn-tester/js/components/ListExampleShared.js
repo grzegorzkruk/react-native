@@ -257,7 +257,7 @@ function pressItem(item: Item): Item {
 function renderSmallSwitchOption(
   label: string,
   value: boolean,
-  setValue: boolean => void,
+  setValue: (v: boolean) => void,
   testID?: string,
 ): null | React.Node {
   if (Platform.isTV) {
@@ -276,7 +276,7 @@ function renderSmallSwitchOption(
   );
 }
 
-function PlainInput(props: Object): React.Node {
+function PlainInput(props: any): React.Node {
   return (
     <TextInput
       autoCapitalize="none"

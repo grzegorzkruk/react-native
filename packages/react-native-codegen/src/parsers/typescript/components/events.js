@@ -175,7 +175,7 @@ function findEventArgumentsAndType(
   parser: Parser,
   typeAnnotation: $FlowFixMe,
   types: TypeDeclarationMap,
-  bubblingType: void | 'direct' | 'bubble',
+  bubblingType: ?('direct' | 'bubble'),
   paperName: ?$FlowFixMe,
 ): {
   argumentProps: ?ReadonlyArray<$FlowFixMe>,
@@ -238,7 +238,7 @@ function findEventArgumentsAndType(
 }
 
 // $FlowFixMe[unclear-type] TODO(T108222691): Use flow-types for @babel/parser
-type EventTypeAST = Object;
+type EventTypeAST = any;
 
 function buildEventSchema(
   types: TypeDeclarationMap,

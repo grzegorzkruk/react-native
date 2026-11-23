@@ -29,8 +29,8 @@ function roundKilo(value: number): number {
   return Math.round(value / 1000);
 }
 
-class XHRExampleDownload extends React.Component<{...}, Object> {
-  state: Object = {
+class XHRExampleDownload extends React.Component<{...}, any> {
+  state: any = {
     downloading: false,
     // set by onreadystatechange
     contentLength: 1,
@@ -60,7 +60,7 @@ class XHRExampleDownload extends React.Component<{...}, Object> {
     const onreadystatechange = () => {
       if (xhr.readyState === xhr.HEADERS_RECEIVED) {
         const contentLength = parseInt(
-          xhr.getResponseHeader('Content-Length'),
+          String(xhr.getResponseHeader('Content-Length')),
           10,
         );
         this.setState({

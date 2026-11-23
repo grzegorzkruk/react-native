@@ -20,6 +20,29 @@
 using namespace facebook;
 using namespace facebook::react;
 
+TEST(RawPropsTest, dynamicSourceIsBorrowed) {
+  const auto rawProps = RawProps(folly::dynamic::object("opacity", 0.5));
+  const auto* dynamic = rawProps.getDynamic();
+  ASSERT_NE(dynamic, nullptr);
+  EXPECT_EQ(dynamic, rawProps.getDynamic());
+  EXPECT_EQ(*dynamic, rawProps.toDynamic());
+}
+
+TEST(RawPropsTest, emptyPropsHaveNoDynamicSource) {
+  EXPECT_EQ(RawProps().getDynamic(), nullptr);
+  EXPECT_EQ(RawProps(nullptr).getDynamic(), nullptr);
+}
+
+TEST(RawPropsTest, jsiPropsHaveNoDynamicSource) {
+  auto runtime = facebook::hermes::makeHermesRuntime();
+  auto object = jsi::Object(*runtime);
+  object.setProperty(*runtime, "opacity", 0.5);
+  const auto rawProps = RawProps(*runtime, jsi::Value(*runtime, object));
+  EXPECT_EQ(rawProps.getDynamic(), nullptr);
+  folly::dynamic expected = folly::dynamic::object("opacity", 0.5);
+  EXPECT_EQ(rawProps.toDynamic(), expected);
+}
+
 class PropsSingleFloat : public Props {
  public:
   PropsSingleFloat() = default;
@@ -327,7 +350,6 @@ TEST(RawPropsTest, handleRawPropsPrimitiveTypesIncomplete) {
   EXPECT_EQ((int)*raw.at("intValue"), 42);
 }
 
-#ifdef REACT_NATIVE_DEBUG
 TEST(RawPropsTest, handleRawPropsPrimitiveTypesIncorrectLookup) {
   ContextContainer contextContainer{};
   PropsParserContext parserContext{-1, contextContainer};
@@ -338,13 +360,9 @@ TEST(RawPropsTest, handleRawPropsPrimitiveTypesIncorrectLookup) {
   parser.prepare<PropsPrimitiveTypes>();
   raw.parse(parser);
 
-  // Before D18662135, looking up an invalid key would trigger
-  // an infinite loop. This is out of contract, so we should only
-  // test this in debug.
   EXPECT_EQ(raw.at("flurb"), nullptr);
   EXPECT_EQ((int)*raw.at("intValue"), 42);
 }
-#endif
 
 TEST(RawPropsTest, handlePropsMultiLookup) {
   ContextContainer contextContainer{};

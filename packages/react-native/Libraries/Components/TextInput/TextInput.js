@@ -183,8 +183,8 @@ function useTextInputStateSynchronization({
   text?: string,
   viewCommands: ViewCommands,
 }): {
-  setLastNativeText: string => void,
-  setLastNativeSelection: LastNativeSelection => void,
+  setLastNativeText: (v: string) => void,
+  setLastNativeSelection: (v: LastNativeSelection) => void,
 } {
   const [lastNativeText, setLastNativeText] = useState<?Stringish>(props.value);
   const [lastNativeSelectionState, setLastNativeSelection] =
@@ -551,7 +551,6 @@ function InternalTextInput(props: TextInputProps): React.Node {
     }
 
     if (overrides != null) {
-      // $FlowFixMe[incompatible-type]
       _style = [_style, overrides];
     }
   }
@@ -635,12 +634,7 @@ function InternalTextInput(props: TextInputProps): React.Node {
     };
     textInput =
       (
-        /* $FlowFixMe[prop-missing] the types for AndroidTextInput don't match up
-         * exactly with the props for TextInput. This will need to get fixed */
         /* $FlowFixMe[incompatible-type] the types for AndroidTextInput don't
-         * match up exactly with the props for TextInput. This will need to get
-         * fixed */
-        /* $FlowFixMe[incompatible-type-arg] the types for AndroidTextInput don't
          * match up exactly with the props for TextInput. This will need to get
          * fixed */
         <AndroidTextInput
@@ -667,9 +661,6 @@ function InternalTextInput(props: TextInputProps): React.Node {
           onBlur={_onBlur}
           onChange={_onChange}
           onFocus={_onFocus}
-          /* $FlowFixMe[prop-missing] the types for AndroidTextInput don't match
-           * up exactly with the props for TextInput. This will need to get fixed
-           */
           /* $FlowFixMe[incompatible-type] the types for AndroidTextInput
            * don't match up exactly with the props for TextInput. This will need
            * to get fixed */
@@ -898,7 +889,7 @@ const autoCompleteWebToTextContentTypeMap = {
  */
 const TextInput: component(
   ref?: React.RefSetter<TextInputInstance>,
-  ...props: React.ElementConfig<typeof InternalTextInput>
+  ...props: React.ComponentProps<typeof InternalTextInput>
 ) = function TextInput({
   ref: forwardedRef,
   allowFontScaling = true,
@@ -916,7 +907,7 @@ const TextInput: component(
   ...restProps
 }: {
   ref?: React.RefSetter<TextInputInstance>,
-  ...React.ElementConfig<typeof InternalTextInput>,
+  ...React.ComponentProps<typeof InternalTextInput>,
 }) {
   return (
     <InternalTextInput

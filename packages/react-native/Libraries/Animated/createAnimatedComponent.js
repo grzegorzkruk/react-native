@@ -29,7 +29,11 @@ import {useMemo} from 'react';
 
 type Nullable = void | null;
 type Primitive = string | number | boolean | symbol | void;
-type Builtin = (...ReadonlyArray<empty>) => unknown | Date | Error | RegExp;
+type Builtin = (
+  ...rest: ReadonlyArray<empty>
+) => unknown | Date | Error | RegExp;
+type ComponentProps<T> =
+  T extends React.ComponentType<infer Props extends {...}> ? Props : empty;
 
 export type WithAnimatedValue<out T> = T extends Builtin | Nullable
   ? T
@@ -98,7 +102,7 @@ export default function createAnimatedComponent<
 >(
   Component: TInstance,
 ): AnimatedComponentType<
-  Readonly<React.ElementConfig<TInstance>>,
+  Readonly<ComponentProps<TInstance>>,
   React.ElementRef<TInstance>,
 > {
   return unstable_createAnimatedComponentWithAllowlist(Component, null);

@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<c26b8f81fcc99469d0535a89bac18280>>
+ * @generated SignedSource<<a1bae43cd758186d0ef2bd0bbc0784ee>>
  */
 
 /**
@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <react/cxxstableapi/UmbrellaGuard.h>
+#include <react/cxxstableapi/PrivateGuard.h>
 
 #include <react/featureflags/ReactNativeFeatureFlagsOverridesOSSStable.h>
 
@@ -28,10 +28,6 @@ namespace facebook::react {
 class ReactNativeFeatureFlagsOverridesOSSCanary : public ReactNativeFeatureFlagsOverridesOSSStable {
  public:
     ReactNativeFeatureFlagsOverridesOSSCanary() = default;
-
-  bool cxxNativeAnimatedEnabled() override {
-    return true;
-  }
 
   bool enableAccessibilityOrder() override {
     return true;
@@ -49,15 +45,27 @@ class ReactNativeFeatureFlagsOverridesOSSCanary : public ReactNativeFeatureFlags
     return true;
   }
 
-  bool fuseboxFrameRecordingEnabled() override {
+  bool fixBorderlessRippleAndroid() override {
     return true;
   }
 
-  bool fuseboxWebSocketEventsEnabled() override {
+  bool fixProgrammaticScrollMomentumEventsIOS() override {
+    return true;
+  }
+
+  bool fixTextInlineViewLineHeight() override {
+    return true;
+  }
+
+  bool optimizedAnimatedPropUpdates() override {
     return true;
   }
 
   bool useNativeViewConfigsInBridgelessMode() override {
+    return true;
+  }
+
+  bool useSharedAnimatedBackend() override {
     return true;
   }
 

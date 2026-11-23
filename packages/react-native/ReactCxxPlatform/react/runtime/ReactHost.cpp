@@ -18,7 +18,6 @@
 #include <react/devsupport/IDevUIDelegate.h>
 #include <react/devsupport/PackagerConnection.h>
 #include <react/devsupport/inspector/Inspector.h>
-#include <react/featureflags/ReactNativeFeatureFlags.h>
 #include <react/http/IHttpClient.h>
 #include <react/http/IWebSocketClient.h>
 #include <react/io/ResourceLoader.h>
@@ -247,9 +246,6 @@ void ReactHost::createReactInstance() {
 
   reactInstanceData_->mountingManager->setUIManager(scheduler_->getUIManager());
 
-  // Behind `enableBufferedCallInvoker` this shares the instance's buffered
-  // runtime executor, so async calls are ordered against callable module calls
-  // and cannot run before the bundle has evaluated.
   auto jsInvoker = reactInstance_->createJSCallInvoker();
 
   if (inspector_ != nullptr) {
@@ -298,7 +294,12 @@ void ReactHost::createReactInstance() {
             });
 
         // Set up TurboModules
-        TurboModuleBinding::install(runtime, std::move(turboModuleManager));
+        TurboModuleBinding::install(
+            runtime,
+            [turboModuleManager = std::move(turboModuleManager)](
+                jsi::Runtime& /*runtime*/, const std::string& name) {
+              return turboModuleManager(name);
+            });
 
         if (bindingsInstallFunc) {
           bindingsInstallFunc(runtime);

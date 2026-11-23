@@ -460,13 +460,13 @@ void Runtime::deleteProperty(const Object& object, const Value& name) {
 }
 
 size_t Runtime::push(const Array& arr, const Value* elements, size_t count) {
-  size_t newSize = size(arr);
+  uint64_t newSize = size(arr);
   for (size_t i = 0; i < count; i++) {
-    arr.setProperty(*this, Value((int)newSize), elements[i]);
+    arr.setProperty(*this, Value(static_cast<double>(newSize)), elements[i]);
     ++newSize;
   }
-  arr.setProperty(*this, "length", Value((int)newSize));
-  return newSize;
+  arr.setProperty(*this, "length", Value(static_cast<double>(newSize)));
+  return static_cast<size_t>(newSize);
 }
 
 void Runtime::setRuntimeDataImpl(
@@ -923,7 +923,7 @@ String Value::asString(IRuntime& rt) && {
 
 String Value::toString(IRuntime& runtime) const {
   Function toString = runtime.global().getPropertyAsFunction(runtime, "String");
-  return toString.call(runtime, *this).getString(runtime);
+  return toString.call(runtime, *this).asString(runtime);
 }
 
 uint64_t BigInt::asUint64(IRuntime& runtime) const {
@@ -967,9 +967,7 @@ JSError::JSError(IRuntime& rt, Value&& value) {
 
 JSError::JSError(IRuntime& rt, std::string msg) : message_(std::move(msg)) {
   try {
-    setValue(
-        rt,
-        callGlobalFunction(rt, "Error", String::createFromUtf8(rt, message_)));
+    setValue(rt, rt.createError(String::createFromUtf8(rt, message_)));
   } catch (const JSIException& ex) {
     message_ = std::string(ex.what()) + " (while raising " + message_ + ")";
     setValue(rt, String::createFromUtf8(rt, message_));

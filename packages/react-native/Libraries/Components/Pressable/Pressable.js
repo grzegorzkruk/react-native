@@ -270,7 +270,7 @@ function Pressable({
     ariaLive === 'off' ? 'none' : (ariaLive ?? props.accessibilityLiveRegion);
 
   const accessibilityLabel = ariaLabel ?? props.accessibilityLabel;
-  const restPropsWithDefaults: React.ElementConfig<typeof View> = {
+  const restPropsWithDefaults: React.ComponentProps<typeof View> = {
     ...restProps,
     ...android_rippleConfig?.viewProps,
     accessible: accessible !== false,
@@ -368,7 +368,7 @@ function Pressable({
   );
 }
 
-function usePressState(forcePressed: boolean): [boolean, (boolean) => void] {
+function usePressState(forcePressed: boolean): [boolean, (v: boolean) => void] {
   const [pressed, setPressed] = useState(false);
   return [pressed || forcePressed, setPressed];
 }

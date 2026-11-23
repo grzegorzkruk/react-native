@@ -72,7 +72,7 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     cxxNativeAnimatedEnabled: {
-      defaultValue: false,
+      defaultValue: true,
       metadata: {
         dateAdded: '2025-03-14',
         description:
@@ -80,7 +80,7 @@ const definitions: FeatureFlagDefinitions = {
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
-      ossReleaseStage: 'canary',
+      ossReleaseStage: 'stable',
     },
     defaultTextToOverflowHidden: {
       defaultValue: true,
@@ -88,6 +88,17 @@ const definitions: FeatureFlagDefinitions = {
         dateAdded: '2026-02-13',
         description:
           'When enabled, sets the default overflow style for Text components to hidden instead of visible.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
+    deferTextInputTruncationIOS: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-10-09',
+        description:
+          'When enabled, iOS TextInput applies edits that JS transforms (e.g. maxLength truncation) incrementally after the UIKit text change delegate call returns, avoiding synchronous text and selection rewrites that can deadlock UIKeyboardTaskQueue.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
@@ -102,6 +113,17 @@ const definitions: FeatureFlagDefinitions = {
         purpose: 'experimentation',
       },
       ossReleaseStage: 'none',
+    },
+    disableIdleEventDispatchFrameCallbackRearmAndroid: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-09-07',
+        description:
+          'Make the batched-event-dispatch Choreographer frame callback one-shot on Android instead of re-posting itself every frame',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'experimental',
     },
     disableIdleMountItemFrameCallbackRearmAndroid: {
       defaultValue: false,
@@ -181,6 +203,7 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'canary',
     },
     enableAccumulatedUpdatesInRawPropsAndroid: {
+      dangerouslyExposeInPublicCppHeaders: true,
       defaultValue: false,
       metadata: {
         dateAdded: '2024-12-10',
@@ -191,23 +214,23 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'none',
     },
-    enableAndroidAutoOffscreenCompositingForElevation: {
-      defaultValue: false,
+    enableAndroidTextMeasurementOptimizations: {
+      defaultValue: true,
       metadata: {
-        dateAdded: '2026-08-31',
+        dateAdded: '2025-07-01',
         description:
-          'When enabled, a View with reduced opacity that contains an elevated descendant is composited offscreen so the elevation shadow fades uniformly instead of rendering as banded per-primitive alpha.',
+          'Enables various optimizations throughout the path of measuring text on Android.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
       ossReleaseStage: 'none',
     },
-    enableAndroidTextMeasurementOptimizations: {
+    enableAsyncDiskCacheCheckInMultiSourceImageAndroid: {
       defaultValue: false,
       metadata: {
-        dateAdded: '2025-07-01',
+        dateAdded: '2026-09-27',
         description:
-          'Enables various optimizations throughout the path of measuring text on Android.',
+          'Runs multi-source image disk-cache checks asynchronously on Android.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
@@ -222,17 +245,8 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'stable',
     },
-    enableBufferedCallInvoker: {
-      defaultValue: true,
-      metadata: {
-        description:
-          'Route async CallInvoker work through the ReactInstance buffered runtime executor, so it is ordered against callable module calls and cannot run before the JS bundle has finished evaluating. invokeSync is unaffected.',
-        expectedReleaseValue: true,
-        purpose: 'release',
-      },
-      ossReleaseStage: 'none',
-    },
     enableCppPropsIteratorSetter: {
+      dangerouslyExposeInPublicCppHeaders: true,
       defaultValue: false,
       metadata: {
         dateAdded: '2024-09-13',
@@ -287,6 +301,7 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     enableExclusivePropsUpdateAndroid: {
+      dangerouslyExposeInPublicCppHeaders: true,
       defaultValue: false,
       metadata: {
         dateAdded: '2025-11-11',
@@ -337,12 +352,12 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'experimental',
     },
-    enableFontScaleChangesUpdatingLayout: {
-      defaultValue: true,
+    enableFollowUpMountItemDispatchAndroid: {
+      defaultValue: false,
       metadata: {
-        dateAdded: '2025-04-07',
+        dateAdded: '2026-09-29',
         description:
-          'Enables font scale changes updating layout for measurable nodes.',
+          'When mount items are queued while MountItemDispatcher is already dispatching on Android (e.g. from a synchronous state update), dispatch them in the same frame instead of deferring them to the next one.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
@@ -413,6 +428,17 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'none',
     },
+    enableImmediateUpdateModeForScrollContentView: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-11-17',
+        description:
+          'Apply ScrollContentView state updates synchronously on the main thread.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
     enableImperativeEvents: {
       defaultValue: false,
       metadata: {
@@ -429,6 +455,17 @@ const definitions: FeatureFlagDefinitions = {
         dateAdded: '2024-09-13',
         description:
           'Enable ref.focus() and ref.blur() for all views, not just TextInput.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
+    enableInteractableResponderViews: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-08-07',
+        description:
+          'Android views that declare a gesture-responder handler (e.g. PanResponder) register a no-op touch listener so they can be recognized as interactable.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
@@ -497,11 +534,12 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     enableMountingCoordinatorPullModelAndroid: {
+      dangerouslyExposeInPublicCppHeaders: true,
       defaultValue: false,
       metadata: {
         dateAdded: '2026-07-14',
         description:
-          'When enabled, Android mounts transactions with the pull model (like iOS): the commit thread no longer pulls and builds the mount batch in schedulerShouldRenderTransactions. Instead the UI thread pulls the transaction itself via a PullTransactionMountItem enqueued in the MountItemDispatcher, builds the IntBufferBatchMountItem, and applies it synchronously. Requires `enableAccumulatedUpdatesInRawPropsAndroid` to be enabled as well, since a single pull may collapse several commits into one diff and therefore needs complete accumulated rawProps; when used together with Props 2.0, also enable `enableExclusivePropsUpdateAndroid` and `enablePropsUpdateReconciliationAndroid`.',
+          'When enabled, Android mounts transactions with the pull model (like iOS): the commit thread no longer pulls and builds the mount batch in schedulerShouldRenderTransactions. Instead the UI thread pulls the transaction itself at its next mount dispatch, builds the IntBufferBatchMountItem, and applies it synchronously. Requires `enableAccumulatedUpdatesInRawPropsAndroid` to be enabled as well, since a single pull may collapse several commits into one diff and therefore needs complete accumulated rawProps; when used together with Props 2.0, also enable `enableExclusivePropsUpdateAndroid` and `enablePropsUpdateReconciliationAndroid`.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
@@ -517,6 +555,7 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     enableNativeCSSParsing: {
+      dangerouslyExposeInPublicCppHeaders: true,
       defaultValue: false,
       metadata: {
         dateAdded: '2025-02-07',
@@ -527,8 +566,29 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'none',
     },
-    enablePreparedTextLayout: {
+    enablePreallocatedPropsDiffOnInsertAndroid: {
       defaultValue: false,
+      metadata: {
+        dateAdded: '2026-09-30',
+        description:
+          'When enabled together with `enableAccumulatedUpdatesInRawPropsAndroid`, the Insert of a preallocated view only sends the difference between the props the view was preallocated with and the inserted props, instead of sending all props again on every Insert.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
+    enablePredictiveBackAndroid: {
+      defaultValue: false,
+      metadata: {
+        description:
+          'On Android 16+ with targetSdk 36+, ReactActivity creates its back callback disabled so Android can play the predictive back animation. Back reaches JS only while a BackHandler listener asks for it with `intercept: true`.',
+        expectedReleaseValue: true,
+        purpose: 'release',
+      },
+      ossReleaseStage: 'none',
+    },
+    enablePreparedTextLayout: {
+      defaultValue: true,
       metadata: {
         dateAdded: '2025-05-01',
         description: 'Enables caching text layout artifacts for later reuse',
@@ -538,6 +598,7 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     enablePropsUpdateReconciliationAndroid: {
+      dangerouslyExposeInPublicCppHeaders: true,
       defaultValue: false,
       metadata: {
         dateAdded: '2024-07-12',
@@ -645,12 +706,56 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'none',
     },
+    fixBorderlessRippleAndroid: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-10-06',
+        description:
+          'Prevents a borderless ripple feedback underlay from projecting the entire view background on Android, which could hide the background and ripple.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'canary',
+    },
     fixMappingOfEventPrioritiesBetweenFabricAndReact: {
       defaultValue: false,
       metadata: {
         dateAdded: '2024-06-18',
         description:
           'Uses the default event priority instead of the discreet event priority by default when dispatching events from Fabric to React.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
+    fixProgrammaticScrollMomentumEventsIOS: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-11-11',
+        description:
+          'Dispatches `onMomentumScrollBegin` and `onMomentumScrollEnd` as an ordered pair for animated programmatic scrolls on iOS, and neither for non-animated programmatic scrolls.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'canary',
+    },
+    fixTextInlineViewLineHeight: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-10-20',
+        description:
+          'Grows lines of text with `lineHeight` to fit taller inline views instead of letting them overflow, keeps lines after an inline view at `lineHeight` on Android, and aligns inline views with the text baseline on iOS.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'canary',
+    },
+    fixTextLayoutOnPixelDensityChange: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-10-11',
+        description:
+          'Re-measures text and re-sends padding and overflow insets to mounted views when the pixel density changes, so text and padded views do not keep sizes from the old density.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
@@ -688,7 +793,7 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     fuseboxFrameRecordingEnabled: {
-      defaultValue: false,
+      defaultValue: true,
       metadata: {
         dateAdded: '2026-03-05',
         description:
@@ -696,7 +801,7 @@ const definitions: FeatureFlagDefinitions = {
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
-      ossReleaseStage: 'canary',
+      ossReleaseStage: 'stable',
     },
     fuseboxScreenshotCaptureEnabled: {
       defaultValue: true,
@@ -710,7 +815,7 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'stable',
     },
     fuseboxWebSocketEventsEnabled: {
-      defaultValue: false,
+      defaultValue: true,
       metadata: {
         dateAdded: '2026-07-11',
         description:
@@ -718,18 +823,29 @@ const definitions: FeatureFlagDefinitions = {
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
-      ossReleaseStage: 'canary',
+      ossReleaseStage: 'stable',
+    },
+    keepTimersRunningWhileHostPausedAndroid: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-10-22',
+        description:
+          'Keep JS timers running on Android while the React host is paused, stopping them only when the React instance is destroyed. Matches iOS, where timers do not depend on host lifecycle.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
     },
     optimizedAnimatedPropUpdates: {
       defaultValue: false,
       metadata: {
         dateAdded: '2026-04-07',
         description:
-          'When enabled, uses optimized platform-specific paths to apply animated props synchronously. On Android, this uses a batched int/double buffer protocol with a single JNI call. On iOS, this passes AnimatedProps directly through the delegate chain and applies them via cloneProps, avoiding the folly::dynamic round-trip.',
+          'When enabled, uses optimized platform-specific paths to apply animated props synchronously. On Android, this uses a batched int/double buffer protocol with a single JNI call. Other platforms apply the props of each view through the existing synchronous update.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
-      ossReleaseStage: 'none',
+      ossReleaseStage: 'canary',
     },
     overrideBySynchronousMountPropsAtMountingAndroid: {
       defaultValue: true,
@@ -765,10 +881,10 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     preparedTextCacheSize: {
-      defaultValue: 200,
+      defaultValue: 1000,
       metadata: {
         description: 'Number cached PreparedLayouts in TextLayoutManager cache',
-        expectedReleaseValue: 200,
+        expectedReleaseValue: 1000,
         purpose: 'operational',
       },
       ossReleaseStage: 'none',
@@ -833,6 +949,17 @@ const definitions: FeatureFlagDefinitions = {
         dateAdded: '2025-07-15',
         description:
           'Skip activity identity assertion in ReactHostImpl::onHostPause()',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
+    skipUnchangedChildrenInDifferentiator: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-10-20',
+        description:
+          'When a node changes, the differ leaves out its children that are unchanged in both trees instead of describing and comparing them.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
@@ -923,6 +1050,7 @@ const definitions: FeatureFlagDefinitions = {
       ossReleaseStage: 'none',
     },
     useSharedAnimatedBackend: {
+      dangerouslyExposeInPublicCppHeaders: true,
       defaultValue: false,
       metadata: {
         dateAdded: '2025-08-02',
@@ -930,7 +1058,7 @@ const definitions: FeatureFlagDefinitions = {
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },
-      ossReleaseStage: 'experimental',
+      ossReleaseStage: 'canary',
     },
     useTraitHiddenOnAndroid: {
       defaultValue: false,
@@ -952,6 +1080,17 @@ const definitions: FeatureFlagDefinitions = {
         purpose: 'experimentation',
       },
       ossReleaseStage: 'canary',
+    },
+    useWindowDensityForDisplayMetricsAndroid: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-10-11',
+        description:
+          'Keeps the window density in the screen display metrics instead of the physical display density, so text is measured at the density the window renders at.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
     },
     viewCullingOutsetRatio: {
       defaultValue: 0,
@@ -1053,33 +1192,23 @@ const definitions: FeatureFlagDefinitions = {
       },
       ossReleaseStage: 'none',
     },
-    enableImperativeEvents_DEPRECATED: {
-      defaultValue: false,
-      metadata: {
-        description:
-          'Deprecated in favor of the common flag with the same name, which is the one that can be configured by OSS release stage. This is only kept so JS bundles delivered to older native builds, where the common flag is unavailable, can still enable the feature.',
-        expectedReleaseValue: true,
-        purpose: 'release',
-      },
-      ossReleaseStage: 'none',
-    },
-    enableNativeEventTargetEventDispatching: {
-      defaultValue: true,
-      metadata: {
-        dateAdded: '2026-04-13',
-        description:
-          'When enabled, the React Native renderer dispatches events through the W3C EventTarget API (addEventListener/dispatchEvent) instead of the legacy plugin-based system.',
-        expectedReleaseValue: true,
-        purpose: 'experimentation',
-      },
-      ossReleaseStage: 'none',
-    },
     externalElementInspectionEnabled: {
       defaultValue: true,
       metadata: {
         dateAdded: '2026-02-04',
         description:
           'Enable the external inspection API for DevTools to communicate with the Inspector overlay.',
+        expectedReleaseValue: true,
+        purpose: 'experimentation',
+      },
+      ossReleaseStage: 'none',
+    },
+    fixCrossOrientationNestedListViewability: {
+      defaultValue: false,
+      metadata: {
+        dateAdded: '2026-09-29',
+        description:
+          'When enabled, a VirtualizedList nested inside a list of the opposite orientation does not report viewable items while its containing cell is outside the parent viewport.',
         expectedReleaseValue: true,
         purpose: 'experimentation',
       },

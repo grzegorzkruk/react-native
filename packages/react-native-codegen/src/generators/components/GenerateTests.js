@@ -45,7 +45,7 @@ const FileTemplate = ({
  * */
 
 #include <gtest/gtest.h>
-#include <react/renderer/core/PropsParserContext.h>
+#include <React/RendererCore.h>
 #include <react/renderer/components/${libraryName}/Props.h>
 ${imports}
 
@@ -104,7 +104,6 @@ function getTestCasesForProp(
       propName: propName,
       propValue: typeAnnotation.default != null ? typeAnnotation.default : true,
     });
-    // $FlowFixMe[incompatible-type]
     /* $FlowFixMe[invalid-compare] Error discovered during Constant Condition
      * roll out. See https://fburl.com/workplace/4oq3zi07. */
   } else if (typeAnnotation.type === 'IntegerTypeAnnotation') {
@@ -176,11 +175,7 @@ module.exports = {
     headerPrefix?: string,
   ): FilesOutput {
     const fileName = 'Tests.cpp';
-    const allImports = new Set([
-      '#include <react/renderer/core/propsConversions.h>',
-      '#include <react/renderer/core/RawProps.h>',
-      '#include <react/renderer/core/RawPropsParser.h>',
-    ]);
+    const allImports = new Set<string>();
 
     const componentTests = Object.keys(schema.modules)
       .map(moduleName => {
@@ -200,7 +195,6 @@ module.exports = {
             const name = `${componentName}Props`;
 
             const imports = getImports(component.props);
-            // $FlowFixMe[method-unbinding] added when improving typing for this parameters
             imports.forEach(allImports.add, allImports);
 
             return generateTestsString(name, component);

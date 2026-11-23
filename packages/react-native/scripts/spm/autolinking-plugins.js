@@ -65,7 +65,8 @@
  *         // Absolute paths (dirs OR files) the Xcode auto-sync build phase
  *         // should watch for staleness — e.g. the plugin dep's own
  *         // `Package.swift`, `expo-module.config.json`, and per-module
- *         // manifests. Folded into `.spm-sync-watch-paths`; a file edit or a
+ *         // manifests. Folded into `.spm-sync-watch-paths` (or
+ *         // `.spm-sync-watch-absent` while missing); a file edit or a
  *         // dir add/remove there re-triggers the sync. Relative/empty/non-string
  *         // entries are dropped with a warning; a non-array is ignored.
  *         watchPaths: ['/abs/path/Package.swift', '/abs/dir'],
@@ -106,7 +107,7 @@ const path = require('node:path');
  */
 function discoverPlugins(
   deps /*: ReadonlyArray<AutolinkedDep> */,
-  readConfig /*: (root: string) => ?{readonly [string]: unknown} */,
+  readConfig /*: (root: string) => ?{readonly [key: string]: unknown} */,
   denyList /*: ReadonlyArray<string> */ = [],
 ) /*: Array<DiscoveredPlugin> */ {
   const denied = new Set(denyList);
@@ -115,7 +116,6 @@ function discoverPlugins(
     if (denied.has(dep.name)) {
       continue;
     }
-    // $FlowFixMe[incompatible-use] config has a dynamic shape
     const rel = readSwiftpmConfig(
       dep.root,
       readConfig(dep.root),
@@ -144,11 +144,9 @@ function discoverPlugins(
     const resolved =
       typeof fn === 'function'
         ? fn
-        : // $FlowFixMe[incompatible-use] interop shapes
-          typeof fn?.default === 'function'
+        : typeof fn?.default === 'function'
           ? fn.default
-          : // $FlowFixMe[incompatible-use]
-            typeof fn?.plugin === 'function'
+          : typeof fn?.plugin === 'function'
             ? fn.plugin
             : null;
     if (resolved == null) {
@@ -214,17 +212,11 @@ function invokePlugins(
           `${typeof result}; expected an object or undefined.`,
       );
     }
-    // $FlowFixMe[incompatible-use] validated field-by-field below
     const pkgs = result.packageDependencies ?? [];
-    // $FlowFixMe[incompatible-use]
     const prods = result.productDependencies ?? [];
-    // $FlowFixMe[incompatible-use]
     const srcs = result.generatedSources ?? [];
-    // $FlowFixMe[incompatible-use]
     const rawFrameworks = result.flavoredFrameworks ?? [];
-    // $FlowFixMe[incompatible-use]
     const rawWatch = result.watchPaths ?? [];
-    // $FlowFixMe[incompatible-use]
     const rawScriptPhases = result.scriptPhases ?? [];
     if (!Array.isArray(rawFrameworks)) {
       throw new Error(

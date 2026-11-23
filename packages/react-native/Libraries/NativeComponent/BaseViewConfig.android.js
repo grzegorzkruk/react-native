@@ -204,6 +204,9 @@ const directEventTypes = {
   topLayout: {
     registrationName: 'onLayout',
   },
+  topSafeAreaInsetsChange: {
+    registrationName: 'experimental_onSafeAreaInsetsChange',
+  },
 };
 
 const validAttributesForNonEventProps = {
@@ -330,6 +333,12 @@ const validAttributesForNonEventProps = {
   borderBottomWidth: true,
   borderLeftWidth: true,
   borderRightWidth: true,
+  borderBlockWidth: true,
+  borderBlockEndWidth: true,
+  borderBlockStartWidth: true,
+  borderInlineWidth: true,
+  borderInlineEndWidth: true,
+  borderInlineStartWidth: true,
 
   outlineColor: colorAttribute,
   outlineOffset: true,
@@ -396,6 +405,9 @@ const validAttributesForNonEventProps = {
   borderBlockColor: colorAttribute,
   borderBlockEndColor: colorAttribute,
   borderBlockStartColor: colorAttribute,
+  borderInlineColor: colorAttribute,
+  borderInlineEndColor: colorAttribute,
+  borderInlineStartColor: colorAttribute,
   focusable: true,
   tabIndex: true,
   backfaceVisibility: true,
@@ -404,6 +416,7 @@ const validAttributesForNonEventProps = {
 // Props for bubbling and direct events
 const validAttributesForEventProps = {
   onLayout: true,
+  experimental_onSafeAreaInsetsChange: true,
 
   // PanResponder handlers
   onMoveShouldSetResponder: true,

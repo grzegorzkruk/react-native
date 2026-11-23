@@ -9,12 +9,12 @@
 
 #include <react/cxxstableapi/FrameworksGuard.h>
 
+#include <React/Graphics.h>
 #include <React/RendererCore.h>
 #include <React/RendererDebug.h>
 #include <folly/dynamic.h>
 #include <react/renderer/components/scrollview/BaseScrollViewProps.h>
 #include <react/renderer/components/scrollview/primitives.h>
-#include <react/renderer/graphics/Color.h>
 
 #include <string>
 
@@ -38,6 +38,7 @@ class HostPlatformScrollViewProps : public BaseScrollViewProps {
   folly::dynamic fadingEdgeLength{};
   std::string overScrollMode{"auto"};
   SharedColor endFillColor{clearColor()};
+  bool scrollsChildToFocus{true};
 
 #pragma mark - DebugStringConvertible
 

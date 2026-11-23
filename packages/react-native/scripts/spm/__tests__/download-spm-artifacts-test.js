@@ -11,6 +11,7 @@
 'use strict';
 
 const {
+  download,
   exists,
   extractXCFramework,
   findFirst,
@@ -546,16 +547,138 @@ describe('exists', () => {
 });
 
 // ---------------------------------------------------------------------------
+// download — retries transient transport failures without masking client errors.
+// ---------------------------------------------------------------------------
+
+describe('download', () => {
+  let originalFetch;
+  let tempDir;
+  let warnSpy;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'spm-download-'));
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    warnSpy.mockRestore();
+    fs.rmSync(tempDir, {recursive: true, force: true});
+  });
+
+  function downloadResponse(body, error, stall = false) {
+    const bytes = Buffer.from(body);
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: {
+        get: name =>
+          name.toLowerCase() === 'content-length' ? String(bytes.length) : null,
+      },
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(bytes);
+          if (error != null) {
+            controller.error(error);
+          } else if (!stall) {
+            controller.close();
+          }
+        },
+      }),
+    };
+  }
+
+  it('retries a transient stream failure and replaces the partial download', async () => {
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        downloadResponse('partial', new Error('terminated')),
+      )
+      .mockResolvedValueOnce(downloadResponse('complete'));
+    const destination = path.join(tempDir, 'artifact.tar.gz');
+
+    const pending = download(
+      'https://example/artifact.tar.gz',
+      destination,
+      () => {},
+    );
+    await jest.advanceTimersByTimeAsync(1_500);
+    await pending;
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('retrying in 1000ms'),
+    );
+    expect(fs.readFileSync(destination, 'utf8')).toBe('complete');
+    expect(fs.existsSync(`${destination}.download`)).toBe(false);
+  });
+
+  it('retries when an otherwise healthy response stops making progress', async () => {
+    jest.useFakeTimers();
+    try {
+      globalThis.fetch = jest
+        .fn()
+        .mockResolvedValueOnce(downloadResponse('partial', null, true))
+        .mockResolvedValueOnce(downloadResponse('complete'));
+      const destination = path.join(tempDir, 'stalled.tar.gz');
+
+      const pending = download(
+        'https://example/stalled.tar.gz',
+        destination,
+        () => {},
+      );
+      await jest.advanceTimersByTimeAsync(61_500);
+      await pending;
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('retrying in 1000ms'),
+      );
+      expect(fs.readFileSync(destination, 'utf8')).toBe('complete');
+      expect(fs.existsSync(`${destination}.download`)).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not retry a deterministic HTTP client error', async () => {
+    globalThis.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      headers: {get: () => null},
+      body: null,
+    }));
+    const destination = path.join(tempDir, 'missing.tar.gz');
+
+    await expect(
+      download('https://example/missing.tar.gz', destination, () => {}),
+    ).rejects.toThrow(/HTTP 404/);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(fs.existsSync(destination)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // resolveSnapshotUrl — parses maven-metadata.xml into a timestamped URL.
 // ---------------------------------------------------------------------------
 
 describe('resolveSnapshotUrl', () => {
   let origFetch;
+  let warnSpy;
   beforeEach(() => {
     origFetch = globalThis.fetch;
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
   afterEach(() => {
     globalThis.fetch = origFetch;
+    warnSpy.mockRestore();
   });
 
   const METADATA = `<?xml version="1.0"?>
@@ -596,7 +719,7 @@ describe('resolveSnapshotUrl', () => {
 
   it('throws when the metadata request fails', async () => {
     globalThis.fetch = routerFetch({
-      'maven-metadata.xml': {ok: false, status: 500},
+      'maven-metadata.xml': {ok: false, status: 404},
     });
     await expect(
       resolveSnapshotUrl(
@@ -606,6 +729,25 @@ describe('resolveSnapshotUrl', () => {
         'x.tar.gz',
       ),
     ).rejects.toThrow(/Failed to fetch snapshot metadata/);
+  });
+
+  it('retries the metadata request after a transient server error', async () => {
+    const router = routerFetch({'maven-metadata.xml': {text: METADATA}});
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ok: false, status: 503})
+      .mockImplementation(router);
+
+    const pending = resolveSnapshotUrl(
+      '0.85.0',
+      'react',
+      'react-native-artifacts',
+      'reactnative-core-debug.tar.gz',
+    );
+    await jest.advanceTimersByTimeAsync(1_000);
+
+    expect(await pending).toContain('0.85.0-20260101.123456-7');
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('throws when timestamp/buildNumber are absent', async () => {
@@ -629,11 +771,14 @@ describe('resolveSnapshotUrl', () => {
 
 describe('npm dist-tag resolvers', () => {
   let origFetch;
+  let warnSpy;
   beforeEach(() => {
     origFetch = globalThis.fetch;
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
   afterEach(() => {
     globalThis.fetch = origFetch;
+    warnSpy.mockRestore();
   });
 
   it('resolveNightlyVersion returns the version from the npm registry', async () => {
@@ -642,6 +787,25 @@ describe('npm dist-tag resolvers', () => {
     });
     expect(await resolveNightlyVersion('react-native')).toBe(
       '0.86.0-nightly-xyz',
+    );
+  });
+
+  it('resolveNightlyVersion retries a dropped connection', async () => {
+    const router = routerFetch({
+      'react-native/nightly': {json: {version: '0.86.0-nightly-xyz'}},
+    });
+    globalThis.fetch = jest
+      .fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockImplementation(router);
+
+    const pending = resolveNightlyVersion('react-native');
+    await jest.advanceTimersByTimeAsync(1_000);
+
+    expect(await pending).toBe('0.86.0-nightly-xyz');
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('retrying in 1000ms'),
     );
   });
 
@@ -665,7 +829,13 @@ describe('npm dist-tag resolvers', () => {
     globalThis.fetch = routerFetch({
       'hermes-compiler/latest-v1': {ok: false, status: 500},
     });
-    await expect(resolveLatestV1Version()).rejects.toThrow(/npm lookup failed/);
+
+    await Promise.all([
+      expect(resolveLatestV1Version()).rejects.toThrow(/npm lookup failed/),
+      jest.advanceTimersByTimeAsync(3_000),
+    ]);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -898,7 +1068,7 @@ describe('resolveCacheSlotVersion', () => {
 
   it('falls back to the raw label when the nightly lookup fails', async () => {
     globalThis.fetch = routerFetch({
-      'react-native/nightly': {ok: false, status: 503},
+      'react-native/nightly': {ok: false, status: 404},
     });
     expect(await resolveCacheSlotVersion('nightly')).toBe('nightly');
   });

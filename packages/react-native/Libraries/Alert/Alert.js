@@ -27,7 +27,7 @@ export type AlertButtonStyle = 'default' | 'cancel' | 'destructive';
 export type AlertButton = {
   text?: string,
   // $FlowFixMe[unclear-type]
-  onPress?: ?((value?: string) => any) | ?Function,
+  onPress?: ?((value?: string) => any) | ?LegacyFunction,
   isPreferred?: boolean,
   style?: AlertButtonStyle,
   ...
@@ -205,7 +205,7 @@ class Alert {
             (btn.text != null && btn.text !== '') ||
             index < callbackOrButtons.length - 1
           ) {
-            const btnDef: {[number]: string} = {};
+            const btnDef: {[key: number]: string} = {};
             btnDef[index] = btn.text || '';
             buttons.push(btnDef);
           }

@@ -64,7 +64,6 @@ export const PerformanceObserverEntryList_public: typeof PerformanceObserverEntr
     );
   };
 
-// $FlowExpectedError[prop-missing]
 PerformanceObserverEntryList_public.prototype =
   PerformanceObserverEntryList.prototype;
 
@@ -121,6 +120,18 @@ export class PerformanceObserver {
   #calledAtLeastOnce = false;
 
   constructor(callback: PerformanceObserverCallback) {
+    if (arguments.length === 0) {
+      throw new TypeError(
+        "Failed to construct 'PerformanceObserver': 1 argument required, but only 0 present.",
+      );
+    }
+
+    if (typeof callback !== 'function') {
+      throw new TypeError(
+        "Failed to construct 'PerformanceObserver': parameter 1 is not of type 'Function'.",
+      );
+    }
+
     this.#callback = callback;
   }
 

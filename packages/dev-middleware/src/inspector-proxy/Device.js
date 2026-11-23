@@ -47,6 +47,8 @@ const WS_CLOSURE_CODE = {
 // https://github.com/facebook/react-native-devtools-frontend/blob/3d17e0fd462dc698db34586697cce2371b25e0d3/front_end/ui/legacy/components/utils/TargetDetachedDialog.ts#L50-L64
 export const WS_CLOSE_REASON = {
   PAGE_NOT_FOUND: '[PAGE_NOT_FOUND] Debugger page not found',
+  PAGE_REMOVED:
+    '[PAGE_REMOVED] The React Native instance being debugged no longer exists. Relaunch DevTools to debug a new instance.',
   CONNECTION_LOST: '[CONNECTION_LOST] Connection lost to corresponding device',
   RECREATING_DEVICE: '[RECREATING_DEVICE] Recreating device connection',
   NEW_DEBUGGER_OPENED:
@@ -301,6 +303,9 @@ export default class Device {
       );
     }
 
+    // Stop polling the previous connection before its state is replaced.
+    clearInterval(this.#pagesPollingIntervalId);
+
     this.#dangerouslyConstruct(deviceOptions);
 
     // Restore all debugger connections, not just the first one
@@ -495,7 +500,6 @@ export default class Device {
     });
 
     const cdpDebugLogging = this.#cdpDebugLogging;
-    // $FlowFixMe[method-unbinding]
     const sendFunc = socket.send;
     // $FlowFixMe[cannot-write]
     socket.send = function (message: string) {
@@ -603,8 +607,8 @@ export default class Device {
         }
       }
     } else if (message.event === 'disconnect') {
-      // Device sends disconnect events only when page is reloaded or
-      // if debugger socket was disconnected.
+      // Device sends disconnect events when a legacy page is reloaded, or when
+      // it ends or rejects a debugger session (e.g. the page was removed).
       const pageId = message.payload.pageId;
       const sessionId = message.payload.sessionId;
 
@@ -613,6 +617,19 @@ export default class Device {
       const page: ?Page = this.#pages.get(pageId);
 
       if (page != null && this.#pageHasCapability(page, 'nativePageReloads')) {
+        for (const [sid, debuggerConnection] of this.#debuggerConnections) {
+          if (
+            sessionId != null
+              ? sid === sessionId
+              : debuggerConnection.pageId === pageId
+          ) {
+            this.#debuggerConnections.delete(sid);
+            debuggerConnection.socket.close(
+              WS_CLOSURE_CODE.NORMAL,
+              WS_CLOSE_REASON.PAGE_REMOVED,
+            );
+          }
+        }
         return;
       }
 
@@ -1138,7 +1155,6 @@ export default class Device {
   // Fetch text, raising an exception if the text could not be fetched,
   // or is too large.
   async #fetchText(url: URL): Promise<string> {
-    // $FlowFixMe[incompatible-call] Suppress arvr node-fetch flow error
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('HTTP ' + response.status + ' ' + response.statusText);

@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <react/cxxstableapi/UmbrellaGuard.h>
+#include <react/cxxstableapi/PrivateGuard.h>
 
 #include <react/featureflags/ReactNativeFeatureFlagsDefaults.h>
 
@@ -15,7 +15,17 @@ namespace facebook::react {
 
 class ReactNativeFeatureFlagsOverridesOSSStable : public ReactNativeFeatureFlagsDefaults {
  public:
+  bool optimizedAnimatedPropUpdates() override
+  {
+    return true;
+  }
+
   bool useNativeViewConfigsInBridgelessMode() override
+  {
+    return true;
+  }
+
+  bool useSharedAnimatedBackend() override
   {
     return true;
   }

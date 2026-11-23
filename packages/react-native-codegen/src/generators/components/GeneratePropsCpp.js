@@ -313,12 +313,11 @@ module.exports = {
   ): FilesOutput {
     const fileName = 'Props.cpp';
     const allImports: Set<string> = new Set([
-      '#include <react/renderer/core/propsConversions.h>',
-      '#include <react/renderer/core/PropsParserContext.h>',
+      '#include <React/RendererCore.h>',
     ]);
 
     if (includeGetDebugPropsImplementation) {
-      allImports.add('#include <react/renderer/core/graphicsConversions.h>');
+      allImports.add('#include <React/RendererDebug.h>');
       allImports.add(
         '#include <react/renderer/debug/debugStringConvertibleUtils.h>',
       );
@@ -357,7 +356,6 @@ module.exports = {
             );
 
             const imports = getImports(component.props);
-            // $FlowFixMe[method-unbinding] added when improving typing for this parameters
             imports.forEach(allImports.add, allImports);
 
             const replacedTemplate = ComponentTemplate({

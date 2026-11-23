@@ -34,7 +34,7 @@ type RTLToggleState = {isRTL: boolean, ...};
 
 type AnimationState = {
   toggleStatus: any,
-  linear: Object,
+  linear: any,
   windowWidth: number,
   ...
 };
@@ -156,7 +156,7 @@ type RTLSwitcherComponentState = {
 };
 
 function withRTLState(
-  Component: ({
+  Component: (v: {
     isRTL: boolean,
     setRTL: (isRTL: boolean) => void,
     style?: any,
@@ -297,13 +297,13 @@ class AnimationExample extends React.Component<any, AnimationState> {
     );
   }
 
-  _onLayout = (e: Object) => {
+  _onLayout = (e: any) => {
     this.setState({
       windowWidth: e.nativeEvent.layout.width,
     });
   };
 
-  _linearTap = (e: Object) => {
+  _linearTap = (e: any) => {
     this.setState({
       toggleStatus: {
         ...this.state.toggleStatus,

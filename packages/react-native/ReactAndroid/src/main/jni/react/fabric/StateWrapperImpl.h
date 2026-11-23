@@ -7,10 +7,10 @@
 
 #pragma once
 
+#include <React/RendererCore.h>
 #include <fbjni/fbjni.h>
 #include <react/common/mapbuffer/JReadableMapBuffer.h>
 #include <react/jni/ReadableNativeMap.h>
-#include <react/renderer/core/State.h>
 #include <react/uimanager/StateWrapper.h>
 
 namespace facebook::react {
@@ -27,14 +27,16 @@ class StateWrapperImpl : public jni::HybridClass<StateWrapperImpl, StateWrapper>
   jni::local_ref<JReadableMapBuffer::jhybridobject> getStateMapBufferDataImpl();
   jni::local_ref<ReadableNativeMap::jhybridobject> getStateDataImpl();
   jni::local_ref<jobject> getStateDataReferenceImpl();
-  void updateStateImpl(NativeMap *map);
+  void updateStateImpl(NativeMap *map, jint updateMode);
   void setState(std::shared_ptr<const State> state);
   std::shared_ptr<const State> getState() const;
 
  private:
-  std::shared_ptr<const State> state_;
+  friend HybridBase;
 
-  static void initHybrid(jni::alias_ref<jhybridobject> jobj);
+  explicit StateWrapperImpl(std::shared_ptr<const State> state) : state_(std::move(state)) {}
+
+  std::shared_ptr<const State> state_;
 };
 
 } // namespace facebook::react

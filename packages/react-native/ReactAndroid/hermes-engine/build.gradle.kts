@@ -96,14 +96,19 @@ val ndkBuildJobs = Runtime.getRuntime().availableProcessors().toString()
 val prefabHeadersDir = File("$buildDir/prefab-headers")
 
 // We inject the JSI directory used inside the Hermes build with the -DJSI_DIR config.
+// CMake reads the backslashes of a Windows path as escape sequences, so we pass forward slashes.
 val jsiDir = File(reactNativeRootDir, "ReactCommon/jsi")
 
-val downloadHermesDest = File(downloadsDir, "hermes.tar.gz")
+// Naming the tarball after the Hermes version lets `downloadsDir` hold more than one Hermes
+// version, like it already does for the other third-party sources. Release tags are
+// `hermes-v<version>`, so that prefix is stripped to keep the name at `hermes-<version>.tar.gz`.
+val hermesTarballName = "hermes-${hermesVersionProvider.get().removePrefix("hermes-v")}.tar.gz"
+val downloadHermesDest = File(downloadsDir, hermesTarballName)
 val downloadHermes by
     tasks.registering(Download::class) {
       src(
           providers.provider {
-            "https://github.com/facebook/hermes/tarball/${hermesVersionProvider.get()}"
+            "https://github.com/meta/hermes/tarball/${hermesVersionProvider.get()}"
           },
       )
       onlyIfModified(true)
@@ -118,13 +123,8 @@ val unzipHermes by
     tasks.registering(Copy::class) {
       dependsOn(downloadHermes)
       from(tarTree(downloadHermesDest)) {
-        eachFile {
-          // We flatten the unzip as the tarball contains a `facebook-hermes-<SHA>`
-          // folder at the top level.
-          if (this.path.startsWith("facebook-hermes-")) {
-            this.path = this.path.substringAfter("/")
-          }
-        }
+        eachFile { path = path.substringAfter("/") }
+        includeEmptyDirs = false
       }
       into(hermesDir)
     }
@@ -158,7 +158,7 @@ fun configureBuildForHermesCommandLineArgs(
       ".",
       "-B",
       hermesBuildDir.toString(),
-      "-DJSI_DIR=" + jsiDir.absolutePath,
+      "-DJSI_DIR=" + jsiDir.invariantSeparatorsPath,
       "-DCMAKE_BUILD_TYPE=Release",
   )
   if (enableDebugger) {
@@ -339,9 +339,8 @@ android {
             "-DHERMES_IS_ANDROID=True",
             "-DANDROID_STL=c++_shared",
             "-DANDROID_PIE=True",
-            "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
             "-DIMPORT_HOST_COMPILERS=${File(hermesBuildDir, "ImportHostCompilers.cmake").toString()}",
-            "-DJSI_DIR=${jsiDir}",
+            "-DJSI_DIR=${jsiDir.invariantSeparatorsPath}",
             "-DHERMES_BUILD_SHARED_JSI=True",
             "-DHERMES_RELEASE_VERSION=for RN ${version}",
             "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=True",

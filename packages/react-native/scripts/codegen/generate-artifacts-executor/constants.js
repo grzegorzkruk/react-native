@@ -13,7 +13,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const REACT_NATIVE_REPOSITORY_ROOT = path.join(
+const REACT_NATIVE_REPOSITORY_ROOT /*: string */ = path.join(
   __dirname,
   '..',
   '..',
@@ -30,7 +30,7 @@ const REACT_NATIVE_PACKAGE_ROOT_FOLDER /*: string */ = path.join(
 );
 const CODEGEN_REPO_PATH = `${REACT_NATIVE_REPOSITORY_ROOT}/packages/react-native-codegen`;
 
-const CORE_LIBRARIES_WITH_OUTPUT_FOLDER /*: {[string]: $FlowFixMe} */ = {
+const CORE_LIBRARIES_WITH_OUTPUT_FOLDER /*: {[key: string]: $FlowFixMe} */ = {
   FBReactNativeSpec: {
     ios: path.join(
       REACT_NATIVE_PACKAGE_ROOT_FOLDER,

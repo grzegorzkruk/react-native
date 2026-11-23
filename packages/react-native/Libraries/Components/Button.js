@@ -271,8 +271,7 @@ const Button: component(
       accessibilityActions={accessibilityActions}
       onAccessibilityAction={onAccessibilityAction}
       accessibilityLabel={
-        // $FlowFixMe[sketchy-null-string]
-        ariaLabel || accessibilityLabel
+        ariaLabel != null && ariaLabel !== '' ? ariaLabel : accessibilityLabel
       }
       accessibilityHint={accessibilityHint}
       accessibilityLanguage={accessibilityLanguage}
@@ -288,9 +287,6 @@ const Button: component(
       disabled={disabled}
       onPress={onPress}
       touchSoundDisabled={touchSoundDisabled}
-      // $FlowFixMe[incompatible-exact]
-      // $FlowFixMe[prop-missing]
-      // $FlowFixMe[incompatible-type]
       ref={ref}>
       <View style={buttonStyles}>
         <Text style={textStyles} disabled={disabled}>

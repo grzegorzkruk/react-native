@@ -533,13 +533,13 @@ declare module '@babel/traverse' {
 
     bindingIdentifierEquals(name: string, node: BabelNode): boolean;
 
-    getBinding(name: string): Binding | void;
+    getBinding(name: string): Binding | undefined;
 
-    getOwnBinding(name: string): Binding | void;
+    getOwnBinding(name: string): Binding | undefined;
 
-    getBindingIdentifier(name: string): BabelNodeIdentifier | void;
+    getBindingIdentifier(name: string): BabelNodeIdentifier | undefined;
 
-    getOwnBindingIdentifier(name: string): BabelNodeIdentifier | void;
+    getOwnBindingIdentifier(name: string): BabelNodeIdentifier | undefined;
 
     hasOwnBinding(name: string): boolean;
 
@@ -631,7 +631,7 @@ declare module '@babel/traverse' {
 
     constructor(hub: HubInterface, parent: BabelNode): NodePath<TNode>;
 
-    static get({
+    static get(options: {
       hub: HubInterface,
       parentPath: ?NodePath<>,
       parent: BabelNode,
@@ -2186,8 +2186,8 @@ declare module '@babel/traverse' {
   declare export var visitors: Visitors;
 
   declare export type Cache = {
-    path: $ReadOnlyWeakMap<BabelNode, unknown>,
-    scope: $ReadOnlyWeakMap<BabelNode, unknown>,
+    path: ReadonlyWeakMap<BabelNode, unknown>,
+    scope: ReadonlyWeakMap<BabelNode, unknown>,
     clear(): void,
     clearPath(): void,
     clearScope(): void,

@@ -5,10 +5,6 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-// TODO T207169925: Migrate CatalystInstance to Reacthost and remove the Suppress("DEPRECATION")
-// annotation
-@file:Suppress("DEPRECATION")
-
 package com.facebook.react.views.textinput
 
 import android.graphics.Color
@@ -27,10 +23,9 @@ import android.view.inputmethod.EditorInfo
 import androidx.annotation.RequiresApi
 import androidx.autofill.HintConstants
 import androidx.core.content.res.ResourcesCompat.ID_NULL
-import com.facebook.react.bridge.BridgeReactContext
-import com.facebook.react.bridge.CatalystInstance
 import com.facebook.react.bridge.JavaOnlyMap
-import com.facebook.react.bridge.ReactTestHelper.createMockCatalystInstance
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactTestHelper.createTestReactApplicationContext
 import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsForTests
 import com.facebook.react.uimanager.BackgroundStyleApplicator
 import com.facebook.react.uimanager.DisplayMetricsHolder
@@ -41,20 +36,23 @@ import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.style.BorderRadiusProp
 import com.facebook.react.views.text.DefaultStyleValuesUtil.getDefaultTextColorHint
 import com.facebook.react.views.text.ReactTextUpdate
+import com.facebook.react.views.text.internal.span.CustomLineHeightSpan
 import com.facebook.react.views.text.internal.span.CustomStyleSpan
+import com.facebook.testutils.shadows.ShadowSoLoader
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 
 /** Verify {@link EditText} view property being applied properly by {@link ReactTextInputManager} */
 @RunWith(RobolectricTestRunner::class)
+@Config(shadows = [ShadowSoLoader::class])
 class ReactTextInputPropertyTest {
 
-  private lateinit var context: BridgeReactContext
-  private lateinit var catalystInstanceMock: CatalystInstance
+  private lateinit var context: ReactApplicationContext
   private lateinit var themedContext: ThemedReactContext
   private lateinit var manager: ReactTextInputManager
   private lateinit var view: ReactEditText
@@ -72,10 +70,9 @@ class ReactTextInputPropertyTest {
   @Before
   fun setup() {
     ReactNativeFeatureFlagsForTests.setUp()
-    context = BridgeReactContext(RuntimeEnvironment.getApplication())
-    catalystInstanceMock = createMockCatalystInstance()
-    context.initializeWithInstance(catalystInstanceMock)
-    themedContext = ThemedReactContext(context, context.baseContext, null, ID_NULL)
+    val application = RuntimeEnvironment.getApplication()
+    context = createTestReactApplicationContext()
+    themedContext = ThemedReactContext(context, application, null, ID_NULL)
     manager = ReactTextInputManager()
     DisplayMetricsHolder.setScreenDisplayMetrics(DisplayMetrics())
     view = manager.createViewInstance(themedContext)
@@ -211,6 +208,33 @@ class ReactTextInputPropertyTest {
   }
 
   @Test
+  fun testPlaceholderTakesTheLineHeight() {
+    manager.updateProperties(view, buildStyles("lineHeight", 30.0))
+    manager.updateProperties(view, buildStyles("placeholder", "sometext"))
+
+    val hint = view.hint as Spanned
+    assertThat(hint.toString()).isEqualTo("sometext")
+    assertThat(hint.getSpans(0, hint.length, CustomLineHeightSpan::class.java)).hasSize(1)
+  }
+
+  @Test
+  fun testPlaceholderTakesALineHeightSetAfterIt() {
+    manager.updateProperties(view, buildStyles("placeholder", "sometext"))
+    manager.updateProperties(view, buildStyles("lineHeight", 30.0))
+
+    val hint = view.hint as Spanned
+    assertThat(hint.getSpans(0, hint.length, CustomLineHeightSpan::class.java)).hasSize(1)
+  }
+
+  @Test
+  fun testPlaceholderDropsARemovedLineHeight() {
+    manager.updateProperties(view, buildStyles("placeholder", "sometext", "lineHeight", 30.0))
+    manager.updateProperties(view, buildStyles("lineHeight", null))
+
+    assertThat(view.hint).isEqualTo("sometext")
+  }
+
+  @Test
   fun testPlaceholderEllipsizeRespectsMultiline() {
     manager.updateProperties(view, buildStyles("placeholder", "a very long placeholder string"))
     assertThat(view.ellipsize).isEqualTo(TextUtils.TruncateAt.END)
@@ -240,6 +264,20 @@ class ReactTextInputPropertyTest {
 
     manager.updateProperties(view, buildStyles("editable", true))
     assertThat(view.isEnabled).isTrue
+  }
+
+  @Test
+  fun testClearingAccessibilityDisabledPreservesNonEditableInput() {
+    for (state in listOf(JavaOnlyMap(), JavaOnlyMap.of("disabled", null), null)) {
+      manager.updateProperties(
+          view,
+          buildStyles("editable", false, "accessibilityState", JavaOnlyMap.of("disabled", true)),
+      )
+
+      manager.updateProperties(view, buildStyles("accessibilityState", state))
+
+      assertThat(view.isEnabled).isFalse()
+    }
   }
 
   @Test
@@ -386,12 +424,9 @@ class ReactTextInputPropertyTest {
 
   @Test
   fun testKeyboardTypeVisiblePassword() {
-    val passwordVisibilityFlag =
-        InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD and
-            InputType.TYPE_TEXT_VARIATION_PASSWORD.inv()
-
     manager.updateProperties(view, buildStyles("keyboardType", "visible-password"))
-    assertThat(view.inputType and generalKeyboardTypeFlags).isEqualTo(passwordVisibilityFlag)
+    assertThat(view.inputType and (InputType.TYPE_MASK_CLASS or InputType.TYPE_MASK_VARIATION))
+        .isEqualTo(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
   }
 
   @Test
@@ -537,6 +572,19 @@ class ReactTextInputPropertyTest {
 
     manager.updateProperties(view, buildStyles("fontVariationSettings", null))
     assertThat(view.parsedFontVariationSettings).isNull()
+  }
+
+  @Test
+  fun testFontWeightAcceptsANumber() {
+    manager.updateProperties(view, buildStyles())
+    val defaultTypeface = view.typeface
+    manager.updateProperties(view, buildStyles("fontWeight", "700"))
+    val boldTypeface = view.typeface
+    assertThat(boldTypeface).isNotEqualTo(defaultTypeface)
+
+    manager.updateProperties(view, buildStyles("fontWeight", null))
+    manager.updateProperties(view, buildStyles("fontWeight", 700.0))
+    assertThat(view.typeface).isEqualTo(boldTypeface)
   }
 
   @Test

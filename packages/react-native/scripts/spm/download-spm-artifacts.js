@@ -243,7 +243,7 @@ async function resolveSnapshotUrl(
     `${version}-SNAPSHOT/maven-metadata.xml`;
 
   log(`  Fetching snapshot metadata: ${metadataUrl}`);
-  const res = await fetch(metadataUrl);
+  const res = await fetchWithRetry(metadataUrl);
   if (!res.ok) {
     throw new Error(
       `Failed to fetch snapshot metadata (${res.status}): ${metadataUrl}`,
@@ -305,7 +305,9 @@ async function resolveNightlyVersion(
 ) /*: Promise<string> */ {
   log(`  Resolving nightly version from npm: ${npmPackage}`);
 
-  const res = await fetch(`https://registry.npmjs.org/${npmPackage}/nightly`);
+  const res = await fetchWithRetry(
+    `https://registry.npmjs.org/${npmPackage}/nightly`,
+  );
   if (!res.ok) {
     throw new Error(`npm lookup failed for ${npmPackage}: ${res.status}`);
   }
@@ -358,8 +360,7 @@ async function resolveCacheSlotVersion(
 
 async function resolveLatestV1Version() /*: Promise<string> */ {
   log('  Resolving latest-v1 Hermes from npm...');
-  // $FlowFixMe[incompatible-call] global fetch not in Flow stubs
-  const res = await fetch(
+  const res = await fetchWithRetry(
     'https://registry.npmjs.org/hermes-compiler/latest-v1',
   );
   if (!res.ok) {
@@ -377,7 +378,6 @@ async function exists(url /*: string */) /*: Promise<boolean> */ {
   }
 
   try {
-    // $FlowFixMe[incompatible-call] global fetch not in Flow stubs
     const res = await fetch(url, {method: 'HEAD'});
     return res.status === 200;
   } catch {
@@ -490,7 +490,6 @@ function resolveLocalHermesCompilerVersion(
     const pkgPath = require.resolve('hermes-compiler/package.json', {
       paths: [rnRoot],
     });
-    // $FlowFixMe[incompatible-type] JSON.parse returns any
     const pkg /*: {version: string} */ = JSON.parse(
       fs.readFileSync(pkgPath, 'utf8'),
     );
@@ -640,19 +639,31 @@ function createProgressDisplay(
 type ProgressCallback = (label: string, downloaded: number, total: number, speed: number, done: boolean, elapsed: number) => void;
 */
 
-async function download(
+const DOWNLOAD_MAX_ATTEMPTS = 3;
+const DOWNLOAD_RETRY_BASE_DELAY_MS = 1000;
+const DOWNLOAD_IDLE_TIMEOUT_MS = 60_000;
+
+function isRetryableDownloadError(error /*: Error */) /*: boolean */ {
+  // Client errors are deterministic except for request timeout / rate limiting.
+  // Network and stream errors do not carry an HTTP prefix and are safe to retry.
+  const httpStatus = /^HTTP (\d{3})\b/.exec(error.message)?.[1];
+  if (httpStatus == null) {
+    return true;
+  }
+  return isRetryableHttpStatus(Number(httpStatus));
+}
+
+function isRetryableHttpStatus(status /*: number */) /*: boolean */ {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function downloadOnce(
   url /*: string */,
   destPath /*: string */,
   onProgress /*:: ?: ProgressCallback */,
 ) /*: Promise<void> */ {
-  if (fs.existsSync(destPath)) {
-    log(`  Already cached: ${path.basename(destPath)}`);
-    return;
-  }
-
   const tmpPath = destPath + '.download';
   try {
-    // $FlowFixMe[incompatible-call] global fetch not in Flow stubs
     const res = await fetch(url);
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}: ${url}`);
@@ -662,6 +673,7 @@ async function download(
     let downloadedBytes = 0;
     let lastPrintTime = Date.now();
     let lastPrintBytes = 0;
+    let lastDataTime = Date.now();
     const startTime = Date.now();
 
     const fileStream = fs.createWriteStream(tmpPath);
@@ -713,20 +725,30 @@ async function download(
     if (res.body) {
       // fetch() returns a Web ReadableStream, not a Node.js Readable.
       // Convert it so we can pipe to a file stream and track progress.
-      // $FlowFixMe[prop-missing] stream.Readable.fromWeb not in Flow stubs
       const nodeReadable = stream.Readable.fromWeb(res.body);
 
       await new Promise((resolve, reject) => {
         let progressInterval;
         try {
-          progressInterval = setInterval(() => reportProgress(), 500);
+          progressInterval = setInterval(() => {
+            reportProgress();
+            if (Date.now() - lastDataTime >= DOWNLOAD_IDLE_TIMEOUT_MS) {
+              nodeReadable.destroy(
+                new Error(
+                  `Download made no progress for ${DOWNLOAD_IDLE_TIMEOUT_MS / 1000}s: ${url}`,
+                ),
+              );
+            }
+          }, 500);
 
           nodeReadable
             .on('data', chunk => {
               downloadedBytes += chunk.length;
+              lastDataTime = Date.now();
             })
             .on('error', err => {
               clearInterval(progressInterval);
+              fileStream.destroy();
               reject(err);
             })
             .pipe(fileStream)
@@ -737,10 +759,13 @@ async function download(
             })
             .on('error', err => {
               clearInterval(progressInterval);
+              nodeReadable.destroy();
               reject(err);
             });
         } catch (err) {
           if (progressInterval != null) clearInterval(progressInterval);
+          nodeReadable.destroy();
+          fileStream.destroy();
           reject(err);
         }
       });
@@ -753,7 +778,7 @@ async function download(
 
     fs.renameSync(tmpPath, destPath);
   } catch (err) {
-    // Clean up partial .download temp file on failure
+    // Clean up partial .download temp file on failure.
     try {
       fs.unlinkSync(tmpPath);
     } catch {
@@ -761,6 +786,59 @@ async function download(
     }
     throw err;
   }
+}
+
+async function download(
+  url /*: string */,
+  destPath /*: string */,
+  onProgress /*:: ?: ProgressCallback */,
+) /*: Promise<void> */ {
+  if (fs.existsSync(destPath)) {
+    log(`  Already cached: ${path.basename(destPath)}`);
+    return;
+  }
+
+  for (let attempt = 1; attempt <= DOWNLOAD_MAX_ATTEMPTS; attempt++) {
+    try {
+      await downloadOnce(url, destPath, onProgress);
+      return;
+    } catch (error) {
+      if (
+        attempt === DOWNLOAD_MAX_ATTEMPTS ||
+        !isRetryableDownloadError(error)
+      ) {
+        throw error;
+      }
+      const delayMs = DOWNLOAD_RETRY_BASE_DELAY_MS * attempt;
+      warn(
+        `  Download failed (${error.message}); retrying in ${delayMs}ms ` +
+          `(attempt ${attempt + 1}/${DOWNLOAD_MAX_ATTEMPTS})`,
+      );
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+async function fetchWithRetry(url /*: string */) /*: Promise<Response> */ {
+  for (let attempt = 1; attempt < DOWNLOAD_MAX_ATTEMPTS; attempt++) {
+    let reason;
+    try {
+      const res = await fetch(url);
+      if (!isRetryableHttpStatus(res.status)) {
+        return res;
+      }
+      reason = `HTTP ${res.status}`;
+    } catch (error) {
+      reason = error.message;
+    }
+    const delayMs = DOWNLOAD_RETRY_BASE_DELAY_MS * attempt;
+    warn(
+      `  Request failed (${reason}); retrying in ${delayMs}ms ` +
+        `(attempt ${attempt + 1}/${DOWNLOAD_MAX_ATTEMPTS})`,
+    );
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+  return fetch(url);
 }
 
 /**
@@ -1174,7 +1252,6 @@ async function main(argv /*:: ?: Array<string> */) /*: Promise<void> */ {
   let rawVersion = args.version;
   let rnVersion = args.version;
   if (rnVersion == null) {
-    // $FlowFixMe[incompatible-type] JSON.parse returns any
     const rnPkg /*: {version: string} */ = JSON.parse(
       fs.readFileSync(path.join(rnRoot, 'package.json'), 'utf8'),
     );
@@ -1403,7 +1480,7 @@ async function main(argv /*:: ?: Array<string> */) /*: Promise<void> */ {
   }
 
   // Write artifacts.json only on full success.
-  const artifactsJson /*: {[string]: {xcframeworkPath: string, url: string}} */ =
+  const artifactsJson /*: {[key: string]: {xcframeworkPath: string, url: string}} */ =
     {};
   for (const r of succeeded) {
     if (r.error == null) {
@@ -1487,7 +1564,7 @@ function validateArtifactsCache(
   if (!fs.existsSync(artifactsJsonPath)) {
     return `artifacts.json missing in ${artifactsDir}`;
   }
-  let json /*: {[string]: {xcframeworkPath: string, url: string}} */ = {};
+  let json /*: {[key: string]: {xcframeworkPath: string, url: string}} */ = {};
   try {
     // $FlowFixMe[unclear-type] JSON.parse returns any
     const parsed /*: any */ = JSON.parse(
@@ -1544,6 +1621,7 @@ module.exports = {
   resolveLatestV1Version,
   resolveRNCoreArtifact,
   resolveRNDepsArtifact,
+  download,
   exists,
   formatBytes,
   formatSpeed,

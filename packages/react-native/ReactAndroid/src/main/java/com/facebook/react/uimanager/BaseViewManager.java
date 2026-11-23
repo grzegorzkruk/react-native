@@ -7,6 +7,8 @@
 
 package com.facebook.react.uimanager;
 
+import static com.facebook.react.uimanager.internal.FloatPropertySanitizer.sanitizeFloatPropertyValue;
+
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -19,6 +21,7 @@ import android.view.accessibility.AccessibilityEvent;
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.view.AccessibilityDelegateCompat;
 import androidx.core.view.ViewCompat;
 import com.facebook.common.logging.FLog;
 import com.facebook.react.R;
@@ -30,6 +33,7 @@ import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.common.ReactConstants;
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags;
 import com.facebook.react.uimanager.ReactAccessibilityDelegate.AccessibilityRole;
 import com.facebook.react.uimanager.ReactAccessibilityDelegate.Role;
 import com.facebook.react.uimanager.annotations.ReactProp;
@@ -37,9 +41,12 @@ import com.facebook.react.uimanager.events.BlurEvent;
 import com.facebook.react.uimanager.events.EventDispatcher;
 import com.facebook.react.uimanager.events.FocusEvent;
 import com.facebook.react.uimanager.events.PointerEventHelper;
+import com.facebook.react.uimanager.events.SafeAreaInsetsChangeEvent;
+import com.facebook.react.uimanager.internal.SafeAreaInsetsObserver;
 import com.facebook.react.uimanager.style.OutlineStyle;
 import com.facebook.react.uimanager.util.ReactFindViewUtil;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +71,8 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
   private static final String STATE_EXPANDED = "expanded";
   private static final String STATE_MIXED = "mixed";
 
+  private static final View.OnTouchListener NOOP_LISTENER = (v, event) -> false;
+
   public BaseViewManager() {
     super(null);
   }
@@ -74,6 +83,8 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
 
   @Override
   protected @Nullable T prepareToRecycleView(@NonNull ThemedReactContext reactContext, T view) {
+    SafeAreaInsetsObserver.setEnabled(view, false);
+
     // Reset tags
     view.setTag(null);
     view.setTag(R.id.pointer_events, null);
@@ -88,6 +99,13 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
     view.setTag(R.id.accessibility_actions, null);
     view.setTag(R.id.accessibility_value, null);
     view.setTag(R.id.accessibility_state_expanded, null);
+    view.setTag(R.id.accessibility_collection, null);
+    view.setTag(R.id.accessibility_collection_item, null);
+    view.setTag(R.id.role, null);
+    view.setTag(R.id.accessibility_order_parent, null);
+    view.setTag(R.id.original_focusability, null);
+    view.setTag(R.id.accessibility_state_disabled, null);
+    view.setEnabled(true);
     view.setTag(R.id.view_clipped, null);
 
     // This indirectly calls (and resets):
@@ -150,9 +168,24 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
     // NOTE: setClickable MUST be called AFTER setOnClickListener because
     // the latter has the side effect of setting isClickable=true on some views!
     view.setOnClickListener(null);
+    setInteractable(view, false);
     view.setClickable(false);
     view.setFocusable(false);
     view.setFocusableInTouchMode(false);
+
+    // Accessibility state the props apply to the view itself, as a new view has it. The delegate
+    // stays, since a view's constructor may have installed it, and forgets what it cached.
+    AccessibilityDelegateCompat accessibilityDelegate = ViewCompat.getAccessibilityDelegate(view);
+    if (accessibilityDelegate instanceof ReactAccessibilityDelegate) {
+      ((ReactAccessibilityDelegate) accessibilityDelegate).internal_prepareToRecycle();
+    }
+    view.setContentDescription(null);
+    view.setSelected(false);
+    view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+    ViewCompat.setAccessibilityLiveRegion(view, ViewCompat.ACCESSIBILITY_LIVE_REGION_NONE);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      view.setScreenReaderFocusable(false);
+    }
 
     // Predictably, alpha defaults to 1:
     // https://android.googlesource.com/platform/frameworks/base/+/a175a5b/core/java/android/view/View.java#2186
@@ -271,7 +304,7 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
 
   @ReactProp(name = ViewProps.ELEVATION)
   public void setElevation(@NonNull T view, float elevation) {
-    float px = PixelUtil.toPixelFromDIP(elevation);
+    float px = sanitizeFloatPropertyValue(PixelUtil.toPixelFromDIP(elevation));
     boolean wasElevated = view.getElevation() > 0f;
     ViewCompat.setElevation(view, px);
     if (wasElevated != (px > 0f)) {
@@ -295,6 +328,11 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
   @ReactProp(name = ViewProps.RENDER_TO_HARDWARE_TEXTURE)
   public void setRenderToHardwareTexture(@NonNull T view, boolean useHWTexture) {
     view.setTag(R.id.use_hardware_layer, useHWTexture);
+  }
+
+  @ReactProp(name = ViewProps.ON_SAFE_AREA_INSETS_CHANGE, defaultBoolean = false)
+  public void setOnSafeAreaInsetsChange(@NonNull T view, boolean onSafeAreaInsetsChange) {
+    SafeAreaInsetsObserver.setEnabled(view, onSafeAreaInsetsChange);
   }
 
   @ReactProp(name = ViewProps.TEST_ID)
@@ -363,6 +401,18 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
 
   @ReactProp(name = ViewProps.ACCESSIBILITY_STATE)
   public void setViewState(@NonNull T view, @Nullable ReadableMap accessibilityState) {
+    if (accessibilityState != null
+        && accessibilityState.hasKey("disabled")
+        && !accessibilityState.isNull("disabled")) {
+      boolean disabled = accessibilityState.getBoolean("disabled");
+      view.setEnabled(!disabled);
+      view.setTag(R.id.accessibility_state_disabled, disabled);
+    } else {
+      if (Boolean.TRUE.equals(view.getTag(R.id.accessibility_state_disabled))) {
+        resetDisabledFromAccessibilityState(view);
+      }
+      view.setTag(R.id.accessibility_state_disabled, null);
+    }
     if (accessibilityState == null) {
       return;
     }
@@ -385,9 +435,6 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
       view.setSelected(false);
     }
     view.setTag(R.id.accessibility_state, accessibilityState);
-    if (accessibilityState.hasKey("disabled")) {
-      view.setEnabled(!accessibilityState.getBoolean("disabled"));
-    }
 
     // For states which don't have corresponding methods in
     // AccessibilityNodeInfo, update the view's content description
@@ -412,6 +459,8 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
       }
     }
   }
+
+  protected void resetDisabledFromAccessibilityState(@NonNull T view) {}
 
   private void updateViewContentDescription(@NonNull T view) {
     final String accessibilityLabel = (String) view.getTag(R.id.accessibility_label);
@@ -443,9 +492,8 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
         contentDescription.add(text.asString());
       }
     }
-    if (!contentDescription.isEmpty()) {
-      view.setContentDescription(TextUtils.join(", ", contentDescription));
-    }
+    view.setContentDescription(
+        contentDescription.isEmpty() ? null : TextUtils.join(", ", contentDescription));
   }
 
   @ReactProp(name = ViewProps.ACCESSIBILITY_ACTIONS)
@@ -459,15 +507,8 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
 
   @ReactProp(name = ViewProps.ACCESSIBILITY_VALUE)
   public void setAccessibilityValue(T view, ReadableMap accessibilityValue) {
-    if (accessibilityValue == null) {
-      view.setTag(R.id.accessibility_value, null);
-      view.setContentDescription(null);
-    } else {
-      view.setTag(R.id.accessibility_value, accessibilityValue);
-      if (accessibilityValue.hasKey("text")) {
-        updateViewContentDescription(view);
-      }
-    }
+    view.setTag(R.id.accessibility_value, accessibilityValue);
+    updateViewContentDescription(view);
   }
 
   @ReactProp(name = ViewProps.IMPORTANT_FOR_ACCESSIBILITY)
@@ -509,13 +550,13 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
   @Deprecated
   @ReactProp(name = ViewProps.SCALE_X, defaultFloat = 1f)
   public void setScaleX(@NonNull T view, float scaleX) {
-    view.setScaleX(scaleX);
+    view.setScaleX(sanitizeFloatPropertyValue(scaleX));
   }
 
   @Deprecated
   @ReactProp(name = ViewProps.SCALE_Y, defaultFloat = 1f)
   public void setScaleY(@NonNull T view, float scaleY) {
-    view.setScaleY(scaleY);
+    view.setScaleY(sanitizeFloatPropertyValue(scaleY));
   }
 
   @Deprecated
@@ -675,29 +716,6 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
     view.setTag(R.id.skew_animation_matrix, null);
   }
 
-  /**
-   * Prior to Android P things like setScaleX() allowed passing float values that were bogus such as
-   * Float.NaN. If the app is targeting Android P or later then passing these values will result in
-   * an exception being thrown. Since JS might still send Float.NaN, we want to keep the code
-   * backward compatible and continue using the fallback value if an invalid float is passed.
-   */
-  private static float sanitizeFloatPropertyValue(float value) {
-    if (value >= -Float.MAX_VALUE && value <= Float.MAX_VALUE) {
-      return value;
-    }
-    if (value < -Float.MAX_VALUE || value == Float.NEGATIVE_INFINITY) {
-      return -Float.MAX_VALUE;
-    }
-    if (value > Float.MAX_VALUE || value == Float.POSITIVE_INFINITY) {
-      return Float.MAX_VALUE;
-    }
-    if (Float.isNaN(value)) {
-      return 0;
-    }
-    // Shouldn't be possible to reach this point.
-    throw new IllegalStateException("Invalid float property value: " + value);
-  }
-
   protected void updateViewAccessibility(@NonNull T view) {
     ReactAccessibilityDelegate.setDelegate(
         view, view.isFocusable(), view.getImportantForAccessibility());
@@ -818,12 +836,13 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
     Map<String, Object> baseEventTypeConstants = super.getExportedCustomDirectEventTypeConstants();
     Map<String, Object> eventTypeConstants =
         baseEventTypeConstants == null ? new HashMap<String, Object>() : baseEventTypeConstants;
-    eventTypeConstants.putAll(
-        MapBuilder.<String, Object>builder()
-            .put(
-                "topAccessibilityAction",
-                MapBuilder.of("registrationName", "onAccessibilityAction"))
-            .build());
+    eventTypeConstants.put(
+        "topAccessibilityAction",
+        Collections.<String, Object>singletonMap("registrationName", "onAccessibilityAction"));
+    eventTypeConstants.put(
+        SafeAreaInsetsChangeEvent.EVENT_NAME,
+        Collections.<String, Object>singletonMap(
+            "registrationName", ViewProps.ON_SAFE_AREA_INSETS_CHANGE));
     return eventTypeConstants;
   }
 
@@ -964,7 +983,24 @@ public abstract class BaseViewManager<T extends View, C extends LayoutShadowNode
 
   @ReactProp(name = "onStartShouldSetResponder")
   public void setStartShouldSetResponder(@NonNull T view, boolean value) {
-    // no-op, handled by JSResponder
+    // Touch handled by the JSResponder system, but listener is needed to indicate interactability.
+    setInteractable(view, value);
+  }
+
+  private static void setInteractable(@NonNull View view, boolean interactable) {
+    if (!ReactNativeFeatureFlags.enableInteractableResponderViews()) {
+      return;
+    }
+    boolean noopListener = view.getTag(R.id.noop_touch_listener) != null;
+    if (interactable) {
+      if (!noopListener) {
+        view.setOnTouchListener(NOOP_LISTENER);
+        view.setTag(R.id.noop_touch_listener, Boolean.TRUE);
+      }
+    } else if (noopListener) {
+      view.setOnTouchListener(null);
+      view.setTag(R.id.noop_touch_listener, null);
+    }
   }
 
   @ReactProp(name = "onStartShouldSetResponderCapture")

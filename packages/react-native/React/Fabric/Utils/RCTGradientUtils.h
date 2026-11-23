@@ -6,7 +6,7 @@
  */
 
 #include <Foundation/Foundation.h>
-#include <react/renderer/graphics/ColorStop.h>
+#include <React/Graphics.h>
 #import <vector>
 
 NS_ASSUME_NONNULL_BEGIN
@@ -16,6 +16,10 @@ NS_ASSUME_NONNULL_BEGIN
 + (std::vector<facebook::react::ProcessedColorStop>)getFixedColorStops:
                                                         (const std::vector<facebook::react::ColorStop> &)colorStops
                                                     gradientLineLength:(CGFloat)gradientLineLength;
+
++ (std::vector<facebook::react::ProcessedColorStop>)
+    clipColorStops:(const std::vector<facebook::react::ProcessedColorStop> &)colorStops
+               end:(facebook::react::Float)end;
 
 // CAGradientLayer linear gradient squishes the non-square gradient to square gradient.
 // This function fixes the "squished" effect.

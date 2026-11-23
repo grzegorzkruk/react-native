@@ -38,7 +38,12 @@ void ViewShadowNode::initialize() noexcept {
         return true;
       }
     }
-    return false;
+    return viewProps.borderBlockWidth.isDefined() ||
+        viewProps.borderBlockStartWidth.isDefined() ||
+        viewProps.borderBlockEndWidth.isDefined() ||
+        viewProps.borderInlineWidth.isDefined() ||
+        viewProps.borderInlineStartWidth.isDefined() ||
+        viewProps.borderInlineEndWidth.isDefined();
   };
 
   bool formsStackingContext = !viewProps.collapsable ||
@@ -53,9 +58,10 @@ void ViewShadowNode::initialize() noexcept {
       isColorMeaningful(viewProps.shadowColor) ||
       viewProps.accessibilityElementsHidden ||
       viewProps.accessibilityViewIsModal ||
+      viewProps.accessibilityLiveRegion != AccessibilityLiveRegion::None ||
       viewProps.importantForAccessibility != ImportantForAccessibility::Auto ||
       viewProps.removeClippedSubviews || viewProps.cursor != Cursor::Auto ||
-      !viewProps.filter.empty() ||
+      viewProps.onSafeAreaInsetsChange || !viewProps.filter.empty() ||
       viewProps.mixBlendMode != BlendMode::Normal ||
       viewProps.isolation == Isolation::Isolate ||
       HostPlatformViewTraitsInitializer::formsStackingContext(viewProps) ||

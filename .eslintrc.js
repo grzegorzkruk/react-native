@@ -51,7 +51,6 @@ module.exports = {
       files: [
         './packages/react-native/Libraries/**/*.{js,flow}',
         './packages/react-native/src/**/*.{js,flow}',
-        './packages/assets-registry/registry.js',
       ],
       parser: 'flow-eslint',
       rules: {
@@ -61,6 +60,13 @@ module.exports = {
     {
       files: ['package.json'],
       parser: 'jsonc-eslint-parser',
+    },
+    {
+      // Generated bundles carry `@nolint`, which this lint run does not honor.
+      files: ['private/eslint-plugin-monorepo/rules/sort-imports.js'],
+      rules: {
+        'ft-flow/require-valid-file-annotation': 'off',
+      },
     },
     {
       files: ['flow-typed/**/*.js', 'packages/react-native/flow/**/*'],

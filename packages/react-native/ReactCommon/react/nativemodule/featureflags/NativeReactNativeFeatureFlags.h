@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<dde6447659f81e2f474e857cdf2259d5>>
+ * @generated SignedSource<<bbfd58e4d821fe87b84969aea6b2c606>>
  */
 
 /**
@@ -46,7 +46,11 @@ class NativeReactNativeFeatureFlags
 
   bool defaultTextToOverflowHidden(jsi::Runtime& runtime);
 
+  bool deferTextInputTruncationIOS(jsi::Runtime& runtime);
+
   bool disableEarlyViewCommandExecution(jsi::Runtime& runtime);
+
+  bool disableIdleEventDispatchFrameCallbackRearmAndroid(jsi::Runtime& runtime);
 
   bool disableIdleMountItemFrameCallbackRearmAndroid(jsi::Runtime& runtime);
 
@@ -64,13 +68,11 @@ class NativeReactNativeFeatureFlags
 
   bool enableAccumulatedUpdatesInRawPropsAndroid(jsi::Runtime& runtime);
 
-  bool enableAndroidAutoOffscreenCompositingForElevation(jsi::Runtime& runtime);
-
   bool enableAndroidTextMeasurementOptimizations(jsi::Runtime& runtime);
 
-  bool enableBridgelessArchitecture(jsi::Runtime& runtime);
+  bool enableAsyncDiskCacheCheckInMultiSourceImageAndroid(jsi::Runtime& runtime);
 
-  bool enableBufferedCallInvoker(jsi::Runtime& runtime);
+  bool enableBridgelessArchitecture(jsi::Runtime& runtime);
 
   bool enableCppPropsIteratorSetter(jsi::Runtime& runtime);
 
@@ -92,7 +94,7 @@ class NativeReactNativeFeatureFlags
 
   bool enableFlexboxAutoMinSizeInStrictMode(jsi::Runtime& runtime);
 
-  bool enableFontScaleChangesUpdatingLayout(jsi::Runtime& runtime);
+  bool enableFollowUpMountItemDispatchAndroid(jsi::Runtime& runtime);
 
   bool enableIOSCompressedTextFrameAdjustment(jsi::Runtime& runtime);
 
@@ -106,9 +108,13 @@ class NativeReactNativeFeatureFlags
 
   bool enableImmediateUpdateModeForContentOffsetChanges(jsi::Runtime& runtime);
 
+  bool enableImmediateUpdateModeForScrollContentView(jsi::Runtime& runtime);
+
   bool enableImperativeEvents(jsi::Runtime& runtime);
 
   bool enableImperativeFocus(jsi::Runtime& runtime);
+
+  bool enableInteractableResponderViews(jsi::Runtime& runtime);
 
   bool enableInteropViewManagerClassLookUpOptimizationIOS(jsi::Runtime& runtime);
 
@@ -127,6 +133,10 @@ class NativeReactNativeFeatureFlags
   bool enableMutationObserverByDefault(jsi::Runtime& runtime);
 
   bool enableNativeCSSParsing(jsi::Runtime& runtime);
+
+  bool enablePreallocatedPropsDiffOnInsertAndroid(jsi::Runtime& runtime);
+
+  bool enablePredictiveBackAndroid(jsi::Runtime& runtime);
 
   bool enablePreparedTextLayout(jsi::Runtime& runtime);
 
@@ -150,7 +160,15 @@ class NativeReactNativeFeatureFlags
 
   bool enableVirtualViewContainerStateExperimental(jsi::Runtime& runtime);
 
+  bool fixBorderlessRippleAndroid(jsi::Runtime& runtime);
+
   bool fixMappingOfEventPrioritiesBetweenFabricAndReact(jsi::Runtime& runtime);
+
+  bool fixProgrammaticScrollMomentumEventsIOS(jsi::Runtime& runtime);
+
+  bool fixTextInlineViewLineHeight(jsi::Runtime& runtime);
+
+  bool fixTextLayoutOnPixelDensityChange(jsi::Runtime& runtime);
 
   bool fixYogaFlexBasisFitContentInMainAxis(jsi::Runtime& runtime);
 
@@ -163,6 +181,8 @@ class NativeReactNativeFeatureFlags
   bool fuseboxScreenshotCaptureEnabled(jsi::Runtime& runtime);
 
   bool fuseboxWebSocketEventsEnabled(jsi::Runtime& runtime);
+
+  bool keepTimersRunningWhileHostPausedAndroid(jsi::Runtime& runtime);
 
   bool optimizedAnimatedPropUpdates(jsi::Runtime& runtime);
 
@@ -186,6 +206,8 @@ class NativeReactNativeFeatureFlags
 
   bool skipActivityIdentityAssertionOnHostPause(jsi::Runtime& runtime);
 
+  bool skipUnchangedChildrenInDifferentiator(jsi::Runtime& runtime);
+
   bool syncAndroidClipBoundsWithOverflow(jsi::Runtime& runtime);
 
   bool traceTurboModulePromiseRejectionsOnAndroid(jsi::Runtime& runtime);
@@ -207,6 +229,8 @@ class NativeReactNativeFeatureFlags
   bool useTraitHiddenOnAndroid(jsi::Runtime& runtime);
 
   bool useTurboModuleInterop(jsi::Runtime& runtime);
+
+  bool useWindowDensityForDisplayMetricsAndroid(jsi::Runtime& runtime);
 
   double viewCullingOutsetRatio(jsi::Runtime& runtime);
 

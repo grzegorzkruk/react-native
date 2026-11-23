@@ -22,6 +22,7 @@ const {
   generateSynthPackageSwift,
   hasMixedLanguageSources,
   hasPodspec,
+  isMixedLanguageSourceList,
   linkHeaderTree,
   main,
   reactDescriptor,
@@ -283,6 +284,25 @@ describe('generateSynthPackageSwift', () => {
     );
   });
 
+  it('defines its C++ API macros once each, next to the config-gated ABI defines', () => {
+    expect(generateSynthPackageSwift(baseSpec())).not.toMatch(
+      /RN_(STRICT_API|ALLOW_FRAMEWORKS)/,
+    );
+    const result = generateSynthPackageSwift(
+      baseSpec({
+        cxxApiDefines: [
+          'RN_STRICT_API',
+          'RN_ALLOW_FRAMEWORKS',
+          'RN_ALLOW_FRAMEWORKS',
+        ],
+      }),
+    );
+    expect(result).toMatch(
+      /cxxSettings: \[[^\]]*\.define\("NDEBUG", \.when\(configuration: \.release\)\), \.define\("RN_STRICT_API"\), \.define\("RN_ALLOW_FRAMEWORKS"\)[,\]]/,
+    );
+    expect(result.match(/\.define\("RN_ALLOW_FRAMEWORKS"\)/g)).toHaveLength(1);
+  });
+
   it('depends on ReactNative via a fixed relative path (default synth depth)', () => {
     const result = generateSynthPackageSwift(baseSpec({hasReactDep: true}));
     expect(result).toContain(
@@ -537,6 +557,27 @@ describe('main() — --ios-deployment-target', () => {
     );
     return {appRoot, rnRoot, autolinkDir};
   }
+
+  it("defines the app's C++ API macros (--cxx-api-define) in the synth manifest", () => {
+    const {appRoot, rnRoot, autolinkDir} = buildApp();
+    main([
+      '--app-root',
+      appRoot,
+      '--react-native-root',
+      rnRoot,
+      '--cxx-api-define',
+      'RN_STRICT_API',
+      '--cxx-api-define',
+      'RN_ALLOW_FRAMEWORKS',
+    ]);
+    const synth = fs.readFileSync(
+      path.join(autolinkDir, 'packages', 'MyNativeModule', 'Package.swift'),
+      'utf8',
+    );
+    expect(synth).toMatch(
+      /cxxSettings: \[[^\]]*\.define\("RN_STRICT_API"\), \.define\("RN_ALLOW_FRAMEWORKS"\)/,
+    );
+  });
 
   it('sanitizes the flag into both the aggregator and the synth manifest', () => {
     const {appRoot, rnRoot, autolinkDir} = buildApp();
@@ -1111,6 +1152,31 @@ describe('MissingManifestError + reportMissingManifests', () => {
   });
 });
 
+describe('isMixedLanguageSourceList', () => {
+  it.each(['m', 'mm', 'c', 'cc', 'cpp', 'cxx'])(
+    'recognizes Swift mixed with .%s sources, ignoring case',
+    extension => {
+      expect(
+        isMixedLanguageSourceList([
+          'ios/Foo.SWIFT',
+          `ios/Bar.${extension.toUpperCase()}`,
+        ]),
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    ['empty', []],
+    ['Swift only', ['Foo.swift']],
+    ['C-family only', ['Foo.m', 'Bar.cpp']],
+    ['headers with Swift', ['Foo.h', 'Bar.hpp', 'Foo.swift']],
+    ['non-source suffixes', ['Foo.swift.bak', 'Bar.m']],
+    ['non-C-family suffixes', ['Foo.swift', 'Bar.cpp.bak']],
+  ])('rejects %s source lists', (_name, files) => {
+    expect(isMixedLanguageSourceList(files)).toBe(false);
+  });
+});
+
 describe('hasMixedLanguageSources', () => {
   let root;
 
@@ -1166,6 +1232,158 @@ function useTempApps() {
 
   return {created, spies};
 }
+
+describe('main() — missing-manifest podspec sources', () => {
+  const {created} = useTempApps();
+  let isolated;
+
+  beforeEach(() => {
+    jest.isolateModules(() => {
+      jest.doMock('../read-podspec', () => {
+        const actual = jest.requireActual('../read-podspec');
+        return {
+          ...actual,
+          // Exercise the real podspec parser without spawning CocoaPods.
+          readPodspecCached: podspecPath =>
+            actual.flattenSubspecs(actual.regexPodspec(podspecPath)),
+        };
+      });
+      isolated = require('../generate-spm-autolinking');
+    });
+  });
+
+  afterEach(() => {
+    jest.dontMock('../read-podspec');
+  });
+
+  function missingManifest({
+    sourceFiles,
+    excludeFiles = '',
+    swift = false,
+    podspecDir = '',
+    decoyPodspec = false,
+    iosConfig = (_depRoot, _podspecPath) => ({}),
+  }) {
+    const appRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'spm-pod-sources-'));
+    created.push(appRoot);
+    const rnRoot = path.join(appRoot, 'rn');
+    fs.mkdirSync(rnRoot);
+    fs.writeFileSync(
+      path.join(appRoot, 'package.json'),
+      JSON.stringify({name: 'app'}),
+    );
+    const depRoot = path.join(appRoot, 'node_modules', 'react-native-foo');
+    fs.mkdirSync(path.join(depRoot, 'ios'), {recursive: true});
+    fs.mkdirSync(path.join(depRoot, 'expo', 'ios'), {recursive: true});
+    for (const file of ['ios/Foo.h', 'ios/Foo.m', 'expo/ios/X.swift']) {
+      fs.writeFileSync(path.join(depRoot, file), '');
+    }
+    if (swift) fs.writeFileSync(path.join(depRoot, 'ios/Bar.swift'), '');
+    const podspecPath = path.join(depRoot, podspecDir, 'Foo.podspec');
+    fs.writeFileSync(
+      podspecPath,
+      'Pod::Spec.new do |s|\n' +
+        '  s.name = "Foo"\n' +
+        `  s.source_files = "${sourceFiles}"\n` +
+        `  s.exclude_files = "${excludeFiles}"\n` +
+        'end\n',
+    );
+    if (decoyPodspec) {
+      fs.writeFileSync(
+        path.join(depRoot, 'A.podspec'),
+        'Pod::Spec.new do |s|\n' +
+          '  s.name = "A"\n' +
+          '  s.source_files = "ios/**/*.{h,m}"\n' +
+          'end\n',
+      );
+    }
+    const autolinkDir = path.join(appRoot, 'build/generated/autolinking');
+    fs.mkdirSync(autolinkDir, {recursive: true});
+    fs.writeFileSync(
+      path.join(autolinkDir, 'autolinking.json'),
+      JSON.stringify({
+        dependencies: {
+          'react-native-foo': {
+            root: depRoot,
+            platforms: {ios: iosConfig(depRoot, podspecPath)},
+          },
+        },
+      }),
+    );
+    let error;
+    try {
+      isolated.main(['--app-root', appRoot, '--react-native-root', rnRoot]);
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(isolated.MissingManifestError);
+    expect(error.missingManifests).toHaveLength(1);
+    return error.missingManifests[0];
+  }
+
+  it('ignores stray Swift outside podspec sources and recommends scaffolding', () => {
+    const entry = missingManifest({sourceFiles: 'ios/**/*.{h,m,mm}'});
+    expect(entry.mixed).toBe(false);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('npx react-native spm scaffold'),
+    );
+    expect(console.error).not.toHaveBeenCalledWith(
+      expect.stringContaining('mixed Swift'),
+    );
+  });
+
+  it('reports mixed languages when the podspec includes Swift and Objective-C', () => {
+    const entry = missingManifest({
+      sourceFiles: 'ios/**/*.{h,m,swift}',
+      swift: true,
+    });
+    expect(entry.mixed).toBe(true);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('mixed Swift'),
+    );
+    expect(console.error).not.toHaveBeenCalledWith(
+      expect.stringContaining('npx react-native spm scaffold'),
+    );
+  });
+
+  it('judges the configured podspecPath, not the first podspec found', () => {
+    const entry = missingManifest({
+      sourceFiles: 'ios/**/*.{h,m,swift}',
+      swift: true,
+      decoyPodspec: true,
+      iosConfig: (_depRoot, podspecPath) => ({podspecPath}),
+    });
+    expect(entry.mixed).toBe(true);
+  });
+
+  it('expands podspec globs from the package root when sourceDir is nested', () => {
+    const entry = missingManifest({
+      sourceFiles: 'ios/**/*.{h,m,swift}',
+      swift: true,
+      podspecDir: 'ios',
+      iosConfig: (depRoot, podspecPath) => ({
+        podspecPath,
+        sourceDir: path.join(depRoot, 'ios'),
+      }),
+    });
+    expect(entry.mixed).toBe(true);
+  });
+
+  it('recommends scaffolding when exclude_files removes the only included Swift file', () => {
+    const entry = missingManifest({
+      sourceFiles: 'ios/**/*.{h,m,swift}',
+      excludeFiles: 'ios/Bar.swift',
+      swift: true,
+    });
+    expect(entry.mixed).toBe(false);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('npx react-native spm scaffold'),
+    );
+    expect(console.error).not.toHaveBeenCalledWith(
+      expect.stringContaining('mixed Swift'),
+    );
+  });
+});
 
 // ---------------------------------------------------------------------------
 // main() — autolinking plugin host exemption
@@ -1879,7 +2097,7 @@ describe('main() — scriptPhases sidecar', () => {
 // and deduped/sorted: (1) each module's source DIR; (2) each npm dep's
 // checked-in root Package.swift (FILE) and .react-native/ (DIR) — threaded from
 // the autolinking model's dep root, not derived by walking up; (3) plugin
-// watchPaths. Nonexistent paths are filtered at emission time.
+// watchPaths. Nonexistent paths go to .spm-sync-watch-absent instead.
 // ---------------------------------------------------------------------------
 
 describe('main() — .spm-sync-watch-paths emission', () => {
@@ -1920,8 +2138,8 @@ describe('main() — .spm-sync-watch-paths emission', () => {
     fs.writeFileSync(path.join(fooDir, 'Foo.swift'), '// src\n');
 
     // (C) A plugin-host dep contributing watchPaths: one existing absolute path
-    // (kept), one absent absolute path (filtered at emission), one relative
-    // path (dropped by invokePlugins).
+    // (kept), one absent absolute path (listed as absent), one relative path
+    // (dropped by invokePlugins).
     const expoDir = path.join(appRoot, 'node_modules', 'expo');
     fs.mkdirSync(path.join(expoDir, 'ios'), {recursive: true});
     fs.writeFileSync(path.join(expoDir, 'ios', 'Expo.mm'), '// native\n');
@@ -1940,12 +2158,20 @@ describe('main() — .spm-sync-watch-paths emission', () => {
         "    productDependencies: [{name: 'ExpoModulesCore', package: 'ExpoModulesCore'}],",
         '    watchPaths: [',
         "      path.join(__dirname, 'Package.swift'),", // exists → kept
-        "      path.join(__dirname, 'MISSING.swift'),", // absent → filtered at emission
+        "      path.join(__dirname, 'MISSING.swift'),", // absent → listed as absent
         "      'rel/manifest',", // relative → dropped by invokePlugins
         '    ],',
         '  };',
         '};',
       ].join('\n') + '\n',
+    );
+
+    // (D) The app's project file: Xcode rewrites it on every IDE edit, so
+    // watching it would re-sync after each one.
+    fs.mkdirSync(path.join(appRoot, 'App.xcodeproj'));
+    fs.writeFileSync(
+      path.join(appRoot, 'App.xcodeproj', 'project.pbxproj'),
+      '\n',
     );
 
     const autolinkDir = path.join(appRoot, 'build', 'generated', 'autolinking');
@@ -1972,6 +2198,9 @@ describe('main() — .spm-sync-watch-paths emission', () => {
     // (C) plugin's existing absolute watchPath is kept.
     expect(lines).toContain(path.join(expoDir, 'Package.swift'));
 
+    // (D) the app's project file is not watched.
+    expect(lines.some(l => l.includes('project.pbxproj'))).toBe(false);
+
     // Filtered / dropped entries never reach the file.
     expect(lines.some(l => l.includes('MISSING.swift'))).toBe(false);
     expect(lines.some(l => l.includes('rel/manifest'))).toBe(false);
@@ -1979,6 +2208,54 @@ describe('main() — .spm-sync-watch-paths emission', () => {
     // Deduped and sorted (stable, deterministic output).
     expect(new Set(lines).size).toBe(lines.length);
     expect([...lines].sort()).toEqual(lines);
+
+    expect(
+      fs.readFileSync(path.join(autolinkDir, '.spm-sync-watch-absent'), 'utf8'),
+    ).toBe(path.join(expoDir, 'MISSING.swift') + '\n');
+  });
+
+  it('lists a dep root without Package.swift or .react-native/ as absent', () => {
+    const appRoot = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'spm-watch-absent-')),
+    );
+    created.push(appRoot);
+    const rnRoot = path.join(appRoot, 'rn');
+    fs.mkdirSync(rnRoot, {recursive: true});
+    fs.writeFileSync(
+      path.join(appRoot, 'package.json'),
+      JSON.stringify({name: 'app'}),
+    );
+
+    // Self-managed through ios/Package.swift, so nothing exists at the root.
+    const barDir = path.join(appRoot, 'node_modules', 'react-native-bar');
+    fs.mkdirSync(path.join(barDir, 'ios'), {recursive: true});
+    fs.writeFileSync(
+      path.join(barDir, 'ios', 'Package.swift'),
+      '// swift-tools-version:5.9\n// hand-authored\n',
+    );
+    fs.writeFileSync(path.join(barDir, 'ios', 'Bar.swift'), '// src\n');
+
+    const autolinkDir = path.join(appRoot, 'build', 'generated', 'autolinking');
+    fs.mkdirSync(autolinkDir, {recursive: true});
+    fs.writeFileSync(
+      path.join(autolinkDir, 'autolinking.json'),
+      JSON.stringify({
+        dependencies: {
+          'react-native-bar': {root: barDir, platforms: {ios: {}}},
+        },
+      }),
+    );
+
+    main(['--app-root', appRoot, '--react-native-root', rnRoot]);
+
+    expect(
+      fs.readFileSync(path.join(autolinkDir, '.spm-sync-watch-absent'), 'utf8'),
+    ).toBe(
+      [
+        path.join(barDir, '.react-native'),
+        path.join(barDir, 'Package.swift'),
+      ].join('\n') + '\n',
+    );
   });
 });
 
@@ -2286,5 +2563,48 @@ describe('autolinkingDepToSpmTarget', () => {
         new Map(),
       ),
     ).toThrow(/expandSpmDependencies/);
+  });
+
+  // Every npm dep is self-managed or reported missing, so nothing would
+  // consume header search paths read from its podspec — and the read can
+  // spawn `pod ipc spec`.
+  it('does not read the podspec of a dep that declares HEADER_SEARCH_PATHS', () => {
+    const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'spm-hsp-'));
+    try {
+      fs.writeFileSync(
+        path.join(sourceDir, 'Consumer.podspec'),
+        "Pod::Spec.new do |s|\n  s.name = 'Consumer'\n" +
+          "  s.pod_target_xcconfig = { 'HEADER_SEARCH_PATHS' => '\"$(PODS_TARGET_SRCROOT)/common/cpp\"' }\nend\n",
+      );
+      const readPodspecCached = jest.fn(() => ({
+        headerSearchPaths: ['$(PODS_TARGET_SRCROOT)/common/cpp'],
+      }));
+      let isolated;
+      jest.isolateModules(() => {
+        jest.doMock('../read-podspec', () => ({
+          ...jest.requireActual('../read-podspec'),
+          readPodspecCached,
+        }));
+        isolated = require('../generate-spm-autolinking');
+      });
+
+      const target = isolated.autolinkingDepToSpmTarget(
+        'react-native-consumer',
+        {
+          name: 'react-native-consumer',
+          root: sourceDir,
+          platforms: {ios: {sourceDir}},
+          swiftName: 'ReactNativeConsumer',
+        },
+        '/out',
+        new Map(),
+      );
+
+      expect(readPodspecCached).not.toHaveBeenCalled();
+      expect(target).not.toHaveProperty('headerSearchPaths');
+    } finally {
+      jest.dontMock('../read-podspec');
+      fs.rmSync(sourceDir, {recursive: true, force: true});
+    }
   });
 });
